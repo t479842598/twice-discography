@@ -58,6 +58,8 @@ Thumbs.db
 
 # Misc
 *.local
+frontend/public/media/*
+!frontend/public/media/.gitkeep
 
 # Codex local runtime
 .codex-run/

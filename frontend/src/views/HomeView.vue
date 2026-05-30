@@ -2,6 +2,21 @@
   <main class="page home-page">
     <section class="home-hero" :style="{ '--hero-image': `url(${heroImage})` }">
       <div class="home-hero-image" aria-hidden="true" />
+      <video
+        class="home-hero-video"
+        :class="{ 'is-ready': heroVideoReady }"
+        :poster="heroImage"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        aria-hidden="true"
+        @canplay="heroVideoReady = true"
+        @error="heroVideoReady = false"
+      >
+        <source :src="heroVideo" :type="heroVideoType" />
+      </video>
       <div class="home-hero-shade" />
       <div class="home-hero-content">
         <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" />
@@ -65,7 +80,10 @@ const audioStore = useAudioStore()
 const overview = computed(() => catalog.overview)
 const heroTrack = ref<Track | null>(null)
 const playingHero = ref(false)
+const heroVideoReady = ref(false)
 const heroImage = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
+const heroVideo = import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4'
+const heroVideoType = heroVideo.endsWith('.webm') ? 'video/webm' : 'video/mp4'
 const statLabels: Record<string, string> = {
   albums: '专辑',
   tracks: '歌曲',

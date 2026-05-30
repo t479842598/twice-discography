@@ -2,7 +2,7 @@
 
 TWICE 完整曲目库网站，整理团体、Solo、小分队、MISAMO、CF、翻唱、Pre-debut 作品，并提供多语言资料页、成员页、搜索、时间线和多源音乐播放。
 
-当前仓库已经落地 Fastify + SQLite 后端曲库 API、MusicSquare 多源音乐接口和 Vue 3 + Naive UI 前端。首页参考 TWICE JYP 官方页，默认使用 `ME+YOU` 合照背景，MV 通过按钮跳转观看，避免嵌入视频出现登录提示。
+当前仓库已经落地 Fastify + SQLite 后端曲库 API、MusicSquare 多源音乐接口和 Vue 3 + Naive UI 前端。首页参考 TWICE JYP 官方页，优先播放本地/自托管 `ME+YOU` 视频背景，加载失败时自动回退到官方合照背景。
 
 ## 一键部署
 
@@ -89,6 +89,23 @@ cp .env.example .env
 | `CORS_ORIGIN` | 允许访问后端的前端域名 |
 | `JOOX_TOKEN` | JOOX 接口 token；为空时自动禁用 JOOX |
 | `VITE_API_BASE` | 前端 API 地址 |
+| `VITE_HOME_BG_VIDEO` | 首页背景视频，默认 `/media/me-you-bg.mp4`；也可填自托管 CDN 地址 |
+
+## 首页 MV 背景
+
+首页使用 `<video>` 静音循环播放背景视频，并保留 `ME+YOU` 合照作为兜底。把你有权分发的 `mp4` 或 `webm` 放到下面路径即可本地播放：
+
+```text
+frontend/public/media/me-you-bg.mp4
+```
+
+如果视频放在 CDN，改 `.env`：
+
+```env
+VITE_HOME_BG_VIDEO=https://your-cdn.example.com/twice/me-you-bg.mp4
+```
+
+`frontend/public/media/*` 默认不提交到 Git，避免把完整 MV 直接塞进仓库导致版权、体积和部署带宽问题。
 
 ## 音乐源规则
 
