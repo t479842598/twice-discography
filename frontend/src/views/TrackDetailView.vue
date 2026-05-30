@@ -60,6 +60,9 @@ const track = ref<Track | null>(null)
 async function load() {
   track.value = (await api.track(String(route.params.id))).track
   await audioStore.loadTrack(track.value)
+  if (route.query.autoplay === '1' || route.query.autoplay === 'true') {
+    await audioStore.playTrack(track.value)
+  }
 }
 
 onMounted(load)

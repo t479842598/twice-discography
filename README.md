@@ -166,7 +166,7 @@ JOOX_TOKEN=
 
 ### 4. GitHub Pages
 
-适合静态资料站，不包含后端 API。仓库已提供 GitHub Pages workflow 入口；前端完成后可直接从 Actions 触发部署。
+适合静态资料站，不包含后端 API。仓库已提供 GitHub Pages workflow 入口；第一次运行会自动尝试启用 Pages，前端完成后可直接从 Actions 触发部署。
 
 按钮部署：
 
