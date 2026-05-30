@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Home page screenshot placeholder">
+  <rect width="1280" height="720" fill="#111827"/>
+  <rect x="64" y="56" width="1152" height="608" rx="18" fill="#f8fafc"/>
+  <rect x="104" y="96" width="1072" height="72" rx="10" fill="#f9c5d1"/>
+  <text x="128" y="142" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#111827">TWICE Discography · 首页 / 数据总览</text>
+  <rect x="104" y="208" width="320" height="160" rx="10" fill="#e0f2fe"/>
+  <rect x="480" y="208" width="320" height="160" rx="10" fill="#dcfce7"/>
+  <rect x="856" y="208" width="320" height="160" rx="10" fill="#fef3c7"/>
+  <rect x="104" y="416" width="1072" height="160" rx="10" fill="#ede9fe"/>
+  <text x="128" y="628" font-family="Arial, sans-serif" font-size="22" fill="#64748b">Screenshot placeholder · 前端完成后替换为真实截图</text>
+</svg>

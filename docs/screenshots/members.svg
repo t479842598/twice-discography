@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Members page screenshot placeholder">
+  <rect width="1280" height="720" fill="#111827"/>
+  <rect x="64" y="56" width="1152" height="608" rx="18" fill="#f8fafc"/>
+  <text x="104" y="126" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#111827">成员九宫格</text>
+  <g fill="#f9c5d1">
+    <rect x="104" y="166" width="180" height="126" rx="12"/>
+    <rect x="320" y="166" width="180" height="126" rx="12"/>
+    <rect x="536" y="166" width="180" height="126" rx="12"/>
+    <rect x="752" y="166" width="180" height="126" rx="12"/>
+    <rect x="968" y="166" width="180" height="126" rx="12"/>
+  </g>
+  <g fill="#bae6fd">
+    <rect x="104" y="332" width="180" height="126" rx="12"/>
+    <rect x="320" y="332" width="180" height="126" rx="12"/>
+    <rect x="536" y="332" width="180" height="126" rx="12"/>
+    <rect x="752" y="332" width="180" height="126" rx="12"/>
+  </g>
+  <text x="104" y="628" font-family="Arial, sans-serif" font-size="22" fill="#64748b">Members screenshot placeholder</text>
+</svg>

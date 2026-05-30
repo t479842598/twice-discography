@@ -4,6 +4,78 @@
 
 # TWICE 完整曲目库网站 - v7 最终方案（开干版）
 
+## v8.1 音乐源修订（已并入实现）
+
+本版把原先的 **MusicSquare fork + iframe 嵌入** 主路径，升级为 **后端统一解析 MusicSquare 所用接口 + 前端原生播放器**。
+
+### 音源与默认规则
+
+| 项目 | 决定 |
+|------|------|
+| **支持音源** | QQ 音乐 / 网易云 / 酷我 / JOOX |
+| **展示顺序** | QQ 音乐 → 网易云 → 酷我 → JOOX |
+| **默认播放** | 先选当前可播放的最高音质；同音质优先 QQ，其次网易云 |
+| **推荐标记** | QQ 音乐始终作为推荐源显示；如果其它源音质明显更高，默认播放更高音质 |
+| **播放链接** | 后端按需解析短期链接，不下载、不保存、不转存音频文件 |
+| **前端形态** | 不直接嵌 MusicSquare iframe，使用项目自己的播放器、歌词和来源切换 UI |
+
+### 后端音乐 API
+
+```http
+GET /api/music/search?q=&sources=&limit=
+GET /api/tracks/:id/music-candidates
+GET /api/tracks/:id/playback?source=&quality=
+```
+
+`/api/tracks/:id/music-candidates` 返回每首歌的多源候选：
+
+```ts
+{
+  source: 'qq' | 'netease' | 'kuwo' | 'joox'
+  sourceName: string
+  providerId: string
+  title: string
+  artist: string
+  album?: string
+  quality: { tag: string; label: string; rank: number; lossless: boolean }
+  playable: boolean
+  recommended: boolean
+  selected: boolean
+  hasLyrics: boolean
+}
+```
+
+`/api/tracks/:id/playback` 不传 `source` 时自动选择最佳候选；传 `source=qq` 等参数时按用户手动选择解析。失败时前端应自动尝试 candidates 里的下一个 `playable=true` 来源。
+
+### MusicSquare 接口来源
+
+| 来源 | 用途 |
+|------|------|
+| `https://tang.api.s01s.cn/music_open_api.php` | QQ 搜索、详情、歌词、多音质播放链接 |
+| `https://api.qijieya.cn/meting/` | 网易云搜索、播放、封面、歌词 |
+| `https://kw-api.cenguigui.cn/` | 酷我搜索、详情、歌词、无损/高音质播放链接 |
+| `https://apicx.asia/api/joox_music` | JOOX 搜索、歌词、多音质播放链接；需要 `JOOX_TOKEN` |
+
+### 数据字段补充
+
+`tracks` 表在原有 `music_square_query`、`music_square_preferred`、`netease_song_id`、`qq_song_mid` 基础上补充：
+
+- `kuwo_rid`
+- `joox_song_mid`
+- `joox_song_id`
+- `music_source_order_json`
+
+每首歌数据录入优先补 `qq_song_mid`，其次补 `netease_song_id`。`music_square_preferred` 默认建议为 `qq`，除非该曲 QQ 源缺失或不可播放。
+
+### 对原阶段计划的修正
+
+| 原阶段 | 修正 |
+|--------|------|
+| **P1** Fork MusicSquare + URL 参数 + postMessage | 改为 MusicSquare 接口解析层 + 播放源规范化 |
+| **P8** 7 个 embed + MediaPlayer | 改为原生播放器 + 多源候选 + 默认最佳音质 + 失败换源 |
+| **CN/GLOBAL 音源选择** | 音乐源不再按地区优先，只按可用性、音质、QQ→网易云优先级选择 |
+| **Vercel 静态方案 A** | 只能作为资料浏览版；短期播放链接需要后端或 Serverless 解析 |
+
 ## 一、本次新增 / 调整
 
 | 项目 | 决定 |

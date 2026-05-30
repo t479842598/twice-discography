@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS tracks (
   music_square_preferred TEXT,
   netease_song_id TEXT,
   qq_song_mid TEXT,
+  kuwo_rid TEXT,
+  joox_song_mid TEXT,
+  joox_song_id TEXT,
+  music_source_order_json TEXT,
   title_zh TEXT NOT NULL,
   title_en TEXT NOT NULL,
   title_ja TEXT,
@@ -55,6 +59,16 @@ CREATE TABLE IF NOT EXISTS tracks (
   note_ja TEXT,
   note_ko TEXT
 );
+
+CREATE TABLE IF NOT EXISTS music_cache (
+  cache_key TEXT PRIMARY KEY,
+  value_json TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_music_cache_expires_at ON music_cache (expires_at);
 
 CREATE TABLE IF NOT EXISTS members (
   id TEXT PRIMARY KEY,

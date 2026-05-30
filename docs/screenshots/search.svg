@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Search page screenshot placeholder">
+  <rect width="1280" height="720" fill="#111827"/>
+  <rect x="64" y="56" width="1152" height="608" rx="18" fill="#f8fafc"/>
+  <text x="104" y="126" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#111827">全局搜索</text>
+  <rect x="104" y="172" width="1012" height="64" rx="32" fill="#fce7f3"/>
+  <rect x="104" y="286" width="1012" height="54" rx="10" fill="#e0f2fe"/>
+  <rect x="104" y="360" width="1012" height="54" rx="10" fill="#dcfce7"/>
+  <rect x="104" y="434" width="1012" height="54" rx="10" fill="#fef3c7"/>
+  <rect x="104" y="508" width="1012" height="54" rx="10" fill="#ede9fe"/>
+  <text x="104" y="628" font-family="Arial, sans-serif" font-size="22" fill="#64748b">Search screenshot placeholder</text>
+</svg>

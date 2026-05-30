@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import geoip from 'geoip-lite'
+import { getOverview } from '../db/catalog.js'
 
 const localeByCountry: Record<string, string> = {
   CN: 'zh-CN',
@@ -37,12 +38,5 @@ export async function registerMetaRoutes(app: FastifyInstance) {
     supported: ['zh-CN', 'en-US', 'ja-JP', 'ko-KR'],
   }))
 
-  app.get('/stats', async () => ({
-    albums: 0,
-    tracks: 0,
-    members: 9,
-    cfs: 0,
-    covers: 0,
-    solos: 0,
-  }))
+  app.get('/stats', async () => getOverview().stats)
 }

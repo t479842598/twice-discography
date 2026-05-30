@@ -5,6 +5,7 @@ node_modules/
 # Build output
 dist/
 build/
+static-export/
 *.tsbuildinfo
 .vite/
 .turbo/
@@ -57,3 +58,6 @@ Thumbs.db
 
 # Misc
 *.local
+
+# Codex local runtime
+.codex-run/

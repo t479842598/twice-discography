@@ -8,7 +8,7 @@
     "dev": "pnpm -r --parallel run dev",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend dev",
-    "build": "pnpm run build:musicsquare && pnpm -r run build",
+    "build": "pnpm -r run build",
     "build:musicsquare": "node scripts/build-musicsquare.mjs",
     "build:frontend": "pnpm --filter frontend build",
     "build:backend": "pnpm --filter backend build",
