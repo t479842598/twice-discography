@@ -1,0 +1,33 @@
+{
+  "name": "twice-discography",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TWICE complete discography website - albums, solo/unit, CF, covers, member profiles",
+  "license": "MIT",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "build": "pnpm run build:musicsquare && pnpm -r run build",
+    "build:musicsquare": "node scripts/build-musicsquare.mjs",
+    "build:frontend": "pnpm --filter frontend build",
+    "build:backend": "pnpm --filter backend build",
+    "test": "pnpm -r run test",
+    "test:frontend": "pnpm --filter frontend test",
+    "test:backend": "pnpm --filter backend test",
+    "lint": "pnpm -r run lint",
+    "seed": "pnpm --filter backend seed",
+    "optimize-images": "node scripts/optimize-images.mjs",
+    "verify-data": "node scripts/verify-data.mjs",
+    "export-static": "node scripts/export-static.mjs",
+    "start": "pnpm --filter backend start"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@9.7.0"
+}
