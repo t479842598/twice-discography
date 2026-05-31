@@ -493,7 +493,7 @@ export const members = [
   ['mina', '名井南', 'Mina', 'ミナ', '미나', 'Myoui Mina', '1997-03-24', 'JP', '🇯🇵', '#c4b5fd', '主舞 / 副唱'],
   ['dahyun', '多贤', 'Dahyun', 'ダヒョン', '다현', 'Kim Dahyun', '1998-05-28', 'KR', '🇰🇷', '#fca5a5', '领Rapper / 副唱'],
   ['chaeyoung', '彩瑛', 'Chaeyoung', 'チェヨン', '채영', 'Son Chaeyoung', '1999-04-23', 'KR', '🇰🇷', '#fdba74', '主Rapper / 副唱'],
-  ['tzuyu', '子瑜', 'Tzuyu', 'ツウィ', '쯔위', 'Chou Tzuyu', '1999-06-14', 'TW', '🇹🇼', '#93c5fd', '门面 / 副唱 / 忙内'],
+  ['tzuyu', '子瑜', 'Tzuyu', 'ツウィ', '쯔위', 'Chou Tzuyu', '1999-06-14', 'CN', '🇨🇳', '#93c5fd', '门面 / 副唱 / 忙内'],
 ] as const
 
 export const cfs = [
