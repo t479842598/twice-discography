@@ -63,3 +63,9 @@ frontend/public/media/*
 
 # Codex local runtime
 .codex-run/
+
+# Local agent / backup artifacts
+.claude/
+frontend-backup-*/
+frontend-backup-*.tar.gz
+notion_page.html

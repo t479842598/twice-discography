@@ -16,10 +16,12 @@
       class="track-hero-cover"
       :src="track.coverLocal"
       :alt="`${pickText(track.title, localeStore.locale)} cover`"
+      decoding="async"
+      fetchpriority="high"
     />
 
-    <n-grid v-if="track" :cols="2" :x-gap="20" :y-gap="20" responsive="screen">
-      <n-gi>
+    <n-grid v-if="track" :cols="trackGridCols" :x-gap="20" :y-gap="20" responsive="screen" class="track-detail-grid">
+      <n-gi class="track-info-cell">
         <section class="panel">
           <h2>歌曲信息</h2>
           <p>分类：{{ categoryLabel(track.category) }}</p>
@@ -27,7 +29,7 @@
           <p>音乐搜索：{{ track.musicSquareQuery }}</p>
         </section>
       </n-gi>
-      <n-gi>
+      <n-gi class="track-sources-cell">
         <section class="panel">
           <h2>多源音乐</h2>
           <MusicSourceList
@@ -57,6 +59,9 @@ const localeStore = useLocaleStore()
 const audioStore = useAudioStore()
 const track = ref<Track | null>(null)
 
+// 移动端使用单列，桌面端使用双列
+const trackGridCols = 'xs:1 s:1 m:2 l:2 xl:2 2xl:2'
+
 async function load() {
   track.value = (await api.track(String(route.params.id))).track
   await audioStore.loadTrack(track.value)
@@ -68,4 +73,3 @@ async function load() {
 onMounted(load)
 watch(() => route.params.id, load)
 </script>
-

@@ -149,4 +149,52 @@ describe('music routes', () => {
     expect(body.selectedSource).toBe('netease')
     expect(body.audioUrl).toContain('server=netease')
   })
+
+  it('does not use QQ accompaniment URLs for playback', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+
+      if (init?.method === 'HEAD') {
+        return textResponse('')
+      }
+
+      if (url.includes('tang.api.s01s.cn')) {
+        return jsonResponse({
+          song_name: 'FANCY',
+          song_title: 'FANCY',
+          album_name: 'FANCY YOU',
+          song_mid: '003Gjd8u1wDES5',
+          singer_name: 'TWICE',
+          song_play_time: 213,
+          song_play_url_accom: 'http://example.com/fancy-accompaniment.m4a',
+          kbps_accom: 999,
+          song_play_url_standard: 'http://example.com/fancy-vocal.mp3',
+          kbps_standard: 128,
+        })
+      }
+
+      if (url.includes('api.qijieya.cn') && url.includes('type=lrc')) {
+        return textResponse('[00:00.000]FANCY')
+      }
+
+      if (url.includes('api.qijieya.cn') && url.includes('type=url')) {
+        return textResponse('')
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`)
+    }))
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/tracks/fancy/playback?source=qq',
+    })
+    await app.close()
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.audioUrl).toBe('https://example.com/fancy-vocal.mp3')
+    expect(body.audioUrl).not.toContain('accompaniment')
+    expect(body.selected.quality.tag).toBe('standard')
+  })
 })

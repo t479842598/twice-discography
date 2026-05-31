@@ -8,7 +8,7 @@
     <section class="section">
       <h2>合作资料</h2>
       <div class="list-grid">
-        <n-card v-for="cf in cfs" :key="cf.id" :title="cf.brand">
+        <n-card v-for="cf in cfs" :key="cf.id" :title="cf.brand" :class="{ 'is-highlighted': highlightedId === cf.id }">
           <n-tag size="small" :bordered="false">{{ cf.year }}</n-tag>
           <h3>{{ pickText(cf.title, localeStore.locale) }}</h3>
           <p>{{ pickText(cf.description, localeStore.locale) }}</p>
@@ -19,7 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { CfSong, Track } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
@@ -28,8 +29,10 @@ import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
 
 const localeStore = useLocaleStore()
+const route = useRoute()
 const cfs = ref<CfSong[]>([])
 const cfTracks = ref<Track[]>([])
+const highlightedId = computed(() => String(route.query.highlight || ''))
 
 onMounted(async () => {
   const [cfData, trackData] = await Promise.all([api.cfs(), api.tracks()])

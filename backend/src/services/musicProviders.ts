@@ -149,6 +149,9 @@ function scoreHit(hit: MusicSearchHit, track: TrackMusicRecord) {
     if (delta <= 2) score += 8
     else if (delta <= 6) score += 4
   }
+  if (/(instrumental|karaoke|伴奏|纯音乐|off vocal)/i.test(haystack) && !/(instrumental|karaoke|伴奏|纯音乐|off vocal)/i.test(titles.join(' '))) {
+    score -= 80
+  }
 
   score -= hit.displayIndex ?? 0
   return score
@@ -389,7 +392,6 @@ export async function resolveQQCandidate(track: TrackMusicRecord, options?: Musi
   const variant = pickAudioVariant([
     { url: toHttpsUrl(detail.song_play_url_sq), tag: 'lossless', label: 'LOSSLESS', bitrateKbps: numberValue(detail.kbps_sq), text: `SQ ${detail.kbps_sq ?? ''}` },
     { url: toHttpsUrl(detail.song_play_url_pq), tag: 'lossless', label: 'LOSSLESS', bitrateKbps: numberValue(detail.kbps_pq), text: `PQ ${detail.kbps_pq ?? ''}` },
-    { url: toHttpsUrl(detail.song_play_url_accom), tag: 'hq', label: 'HQ', bitrateKbps: numberValue(detail.kbps_accom), text: `ACCOM ${detail.kbps_accom ?? ''}` },
     { url: toHttpsUrl(detail.song_play_url_hq), tag: 'hq', label: 'HQ', bitrateKbps: numberValue(detail.kbps_hq), text: `HQ ${detail.kbps_hq ?? ''}` },
     { url: toHttpsUrl(detail.song_play_url_standard), tag: 'standard', label: 'STD', bitrateKbps: numberValue(detail.kbps_standard), text: `STD ${detail.kbps_standard ?? ''}` },
     { url: toHttpsUrl(detail.song_play_url_fq), tag: 'low', label: 'LOW', bitrateKbps: numberValue(detail.kbps_fq), text: `FQ ${detail.kbps_fq ?? ''}` },
@@ -544,18 +546,21 @@ async function verifyCandidate(candidate: MusicCandidate, options?: MusicProvide
 }
 
 export async function getTrackMusicCandidates(track: TrackMusicRecord, options?: MusicProviderOptions) {
-  const resolvers = [
-    resolveQQCandidate,
-    resolveNeteaseCandidate,
-    resolveKuwoCandidate,
-    resolveJooxCandidate,
-  ]
+  const sourceOrder = normalizeSourceOrder(track.musicSourceOrder ?? [...MUSIC_SOURCE_ORDER])
+
+  const resolverMap: Record<MusicSource, (track: TrackMusicRecord, options?: MusicProviderOptions) => Promise<MusicCandidate | null>> = {
+    qq: resolveQQCandidate,
+    netease: resolveNeteaseCandidate,
+    kuwo: resolveKuwoCandidate,
+    joox: resolveJooxCandidate,
+  }
+
+  const resolvers = sourceOrder.map((source) => resolverMap[source])
   const settled = await Promise.allSettled(resolvers.map((resolver) => resolver(track, options)))
   const candidates = settled.flatMap((result) => (
     result.status === 'fulfilled' && result.value ? [result.value] : []
   ))
   const verified = await Promise.all(candidates.map((candidate) => verifyCandidate(candidate, options)))
-  const sourceOrder = normalizeSourceOrder(track.musicSourceOrder ?? [...MUSIC_SOURCE_ORDER])
   const selected = selectDefaultCandidate(verified, sourceOrder)
   const marked = verified.map((candidate) => ({
     ...candidate,

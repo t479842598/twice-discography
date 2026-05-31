@@ -76,6 +76,14 @@ export function mapTrack(row: Row) {
     note: notes(row),
     musicSquareQuery: row.music_square_query,
     musicSquarePreferred: row.music_square_preferred,
+    neteaseSongId: row.netease_song_id ?? null,
+    qqSongMid: row.qq_song_mid ?? null,
+    kuwoRid: row.kuwo_rid ?? null,
+    jooxSongMid: row.joox_song_mid ?? null,
+    jooxSongId: row.joox_song_id ?? null,
+    ytVideoId: row.yt_video_id ?? null,
+    biliBvid: row.bili_bvid ?? null,
+    biliPage: row.bili_page ? Number(row.bili_page) : null,
   }
 }
 
@@ -101,7 +109,8 @@ export function mapMember(row: Row) {
     mbti: row.mbti ?? null,
     zodiac: row.zodiac ?? null,
     debutDate: row.debut_date ?? null,
-    nationalityCode: row.nationality_code,
+    nationality: row.nationality_code ? String(row.nationality_code).replace(/\s+/g, '').toLowerCase() : '',
+    nationalityCode: row.nationality_code ? String(row.nationality_code).replace(/\s+/g, '').toLowerCase() : '',
     flagEmoji: row.flag_emoji,
     positions: parseJsonArray(row.position_json),
     colorHex: row.color_hex,
@@ -248,6 +257,31 @@ export function listCovers() {
   }))
 }
 
+const featuredAlbumIds = [
+  'apple-twice-1840284138',
+  'apple-twice-1813490993',
+  'apple-twice-1828648304',
+  'strategy',
+  'ready-to-be',
+  'formula-of-love',
+  'eyes-wide-open',
+  'fancy-you',
+]
+
+function isGroupAlbum(album: ReturnType<typeof mapAlbum>) {
+  const albumId = String(album.id)
+  return albumId.startsWith('apple-twice-') || (!albumId.startsWith('apple-') && album.type !== 'unit')
+}
+
+function featuredAlbums(albums: ReturnType<typeof mapAlbum>[]) {
+  const picked = featuredAlbumIds
+    .map((id) => albums.find((album) => album.id === id))
+    .filter((album): album is ReturnType<typeof mapAlbum> => Boolean(album))
+  const latestGroupAlbums = albums.filter((album) => isGroupAlbum(album) && !picked.some((item) => item.id === album.id))
+
+  return [...picked, ...latestGroupAlbums].slice(0, 8)
+}
+
 export function getOverview() {
   const albums = listAlbums()
   const tracks = listTracks()
@@ -278,7 +312,7 @@ export function getOverview() {
       cfs: cfs.filter((cf) => Number(cf.year) === year),
       covers: covers.filter((cover) => Number(cover.year) === year),
     })),
-    featuredAlbums: albums.slice(0, 6),
+    featuredAlbums: featuredAlbums(albums),
     featuredTracks: tracks.filter((track) => track.isTitle).slice(0, 8),
     categories: [
       { key: 'group', label: '团体歌曲', count: tracks.filter((track) => track.category === 'group').length },
@@ -293,11 +327,29 @@ export function getOverview() {
 export function searchCatalog(q: string) {
   const needle = q.toLowerCase()
   const includes = (value: unknown) => String(value ?? '').toLowerCase().includes(needle)
+  const normalize = (value: unknown) => String(value ?? '').toLowerCase().replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, '')
+  const normalizedNeedle = normalize(q)
+  const titleValues = (value: { title?: Record<string, unknown>; name?: Record<string, unknown> }) => Object.values(value.title ?? value.name ?? {})
+  const titleScore = (values: unknown[]) => {
+    const normalizedValues = values.map(normalize).filter(Boolean)
+    if (normalizedValues.some((value) => value === normalizedNeedle)) return 0
+    if (normalizedValues.some((value) => value.startsWith(normalizedNeedle))) return 1
+    if (normalizedValues.some((value) => value.includes(normalizedNeedle))) return 2
+    return 9
+  }
+  const sortByTitleMatch = <T extends { title: Record<string, unknown>; isTitle?: boolean }>(items: T[]) =>
+    items.sort((a, b) => {
+      const scoreA = titleScore(titleValues(a))
+      const scoreB = titleScore(titleValues(b))
+      if (scoreA !== scoreB) return scoreA - scoreB
+      if (Boolean(a.isTitle) !== Boolean(b.isTitle)) return Number(Boolean(b.isTitle)) - Number(Boolean(a.isTitle))
+      return 0
+    })
 
   return {
-    albums: listAlbums().filter((album) => Object.values(album.title).some(includes)),
-    tracks: listTracks().filter((track) => Object.values(track.title).some(includes) || includes(track.albumTitle?.en)),
-    members: listMembers().filter((member) => Object.values(member.name).some(includes)),
+    albums: sortByTitleMatch(listAlbums().filter((album) => Object.values(album.title).some(includes))),
+    tracks: sortByTitleMatch(listTracks().filter((track) => Object.values(track.title).some(includes) || includes(track.albumTitle?.en))),
+    members: listMembers().filter((member) => Object.values(member.name).some(includes) || Object.values(member.realName).some(includes)),
     cfs: listCfs().filter((cf) => includes(cf.brand) || Object.values(cf.title).some(includes)),
     covers: listCovers().filter((cover) => includes(cover.originalSong) || includes(cover.originalArtist)),
   }

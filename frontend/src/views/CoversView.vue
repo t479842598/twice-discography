@@ -8,7 +8,7 @@
     <section class="section">
       <h2>翻唱资料</h2>
       <div class="list-grid">
-        <n-card v-for="cover in covers" :key="cover.id" :title="cover.originalSong">
+        <n-card v-for="cover in covers" :key="cover.id" :title="cover.originalSong" :class="{ 'is-highlighted': highlightedId === cover.id }">
           <n-space>
             <n-tag size="small" :bordered="false">{{ cover.year }}</n-tag>
             <n-tag v-if="cover.isPredebut" size="small" type="warning">预出道</n-tag>
@@ -22,7 +22,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { Cover, Track } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
@@ -31,8 +32,10 @@ import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
 
 const localeStore = useLocaleStore()
+const route = useRoute()
 const covers = ref<Cover[]>([])
 const coverTracks = ref<Track[]>([])
+const highlightedId = computed(() => String(route.query.highlight || ''))
 
 onMounted(async () => {
   const [coverData, trackData] = await Promise.all([api.covers(), api.tracks()])

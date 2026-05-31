@@ -14,6 +14,8 @@
         class="album-detail-cover"
         :src="album.coverLocal"
         :alt="`${pickText(album.title, localeStore.locale)} cover`"
+        decoding="async"
+        fetchpriority="high"
       />
       <div>
         <h2>曲目</h2>

@@ -3,36 +3,43 @@
     <section class="home-hero" :style="{ '--hero-image': `url(${heroImage})` }">
       <div class="home-hero-image" aria-hidden="true" />
       <video
+        v-if="!isMobile"
+        ref="heroVideoRef"
         class="home-hero-video"
         :class="{ 'is-ready': heroVideoReady }"
         :poster="heroImage"
-        autoplay
         muted
         loop
         playsinline
-        preload="metadata"
+        preload="none"
         aria-hidden="true"
         @canplay="heroVideoReady = true"
+        @loadeddata="heroVideoReady = true"
+        @playing="heroVideoReady = true"
         @error="heroVideoReady = false"
       >
         <source :src="heroVideo" :type="heroVideoType" />
       </video>
       <div class="home-hero-shade" />
       <div class="home-hero-content">
-        <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" />
+        <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" width="118" height="118" decoding="async" fetchpriority="high" />
         <p>TWICE · TEN: The Story Goes On</p>
         <h1>ME+YOU</h1>
         <div class="home-hero-actions">
           <n-button type="primary" size="large" :loading="playingHero" @click="playHeroTrack">播放 ME+YOU</n-button>
-          <n-button size="large" tag="a" href="https://youtu.be/zqorlX_5oHQ" target="_blank" rel="noopener noreferrer">
-            观看 MV
-          </n-button>
-          <n-button size="large" secondary @click="$router.push('/albums')">浏览专辑</n-button>
+          <n-button class="home-hero-secondary-button" size="large" @click="openHeroPlayer">观看 MV</n-button>
+          <n-button class="home-hero-secondary-button" size="large" secondary @click="$router.push('/albums')">浏览专辑</n-button>
         </div>
       </div>
     </section>
 
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" responsive="screen">
+    <n-modal v-model:show="showHeroPlayer" preset="card" class="home-mv-modal" title="ME+YOU MV" :bordered="false" @after-leave="stopHeroPlayer">
+      <video ref="heroPlayerRef" class="home-mv-player" :poster="heroImage" controls :autoplay="!isMobile" playsinline>
+        <source :src="heroVideo" :type="heroVideoType" />
+      </video>
+    </n-modal>
+
+    <n-grid :cols="statsGridCols" :x-gap="16" :y-gap="16" responsive="screen">
       <n-gi v-for="(value, key) in overview?.stats" :key="key">
         <div class="stat-block">
           <span>{{ statLabels[key] || key }}</span>
@@ -66,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AlbumCard from '@/components/catalog/AlbumCard.vue'
 import TrackList from '@/components/catalog/TrackList.vue'
@@ -81,9 +88,13 @@ const overview = computed(() => catalog.overview)
 const heroTrack = ref<Track | null>(null)
 const playingHero = ref(false)
 const heroVideoReady = ref(false)
+const heroVideoRef = ref<HTMLVideoElement | null>(null)
+const heroPlayerRef = ref<HTMLVideoElement | null>(null)
+const showHeroPlayer = ref(false)
 const heroImage = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
 const heroVideo = import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4'
 const heroVideoType = heroVideo.endsWith('.webm') ? 'video/webm' : 'video/mp4'
+const isMobile = ref(detectMobile())
 const statLabels: Record<string, string> = {
   albums: '专辑',
   tracks: '歌曲',
@@ -94,10 +105,45 @@ const statLabels: Record<string, string> = {
   units: '小分队',
 }
 
+const statsGridCols = 'xs:2 s:2 m:3 l:4 xl:4 2xl:4'
+
 onMounted(() => {
+  isMobile.value = detectMobile()
   void catalog.loadOverview()
-  void warmHeroTrack()
+  // 移动端不预加载音频
+  if (!isMobile.value) {
+    void warmHeroTrack()
+    void startHeroVideo()
+  }
 })
+
+function detectMobile() {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth <= 820 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
+async function startHeroVideo() {
+  await nextTick()
+  if (!heroVideoRef.value) return
+  if (heroVideoRef.value.readyState >= 2) {
+    heroVideoReady.value = true
+  }
+  void heroVideoRef.value.play().catch(() => {
+    heroVideoReady.value = heroVideoRef.value ? heroVideoRef.value.readyState >= 2 : false
+  })
+}
+
+async function openHeroPlayer() {
+  showHeroPlayer.value = true
+  await nextTick()
+  if (!heroPlayerRef.value) return
+  heroPlayerRef.value.currentTime = 0
+  void heroPlayerRef.value.play().catch(() => {})
+}
+
+function stopHeroPlayer() {
+  heroPlayerRef.value?.pause()
+}
 
 async function playHeroTrack() {
   playingHero.value = true
@@ -119,4 +165,3 @@ async function warmHeroTrack() {
   }
 }
 </script>
-

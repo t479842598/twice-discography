@@ -54,6 +54,13 @@ const checks = [
     'FANCY has preferred QQ source',
     () => one("SELECT music_square_preferred AS source FROM tracks WHERE id = 'fancy'").source === 'qq',
   ],
+  [
+    'Blink has fixed vocal source ids',
+    () => {
+      const track = one("SELECT qq_song_mid, netease_song_id, kuwo_rid FROM tracks WHERE title_en = 'Blink'")
+      return track?.qq_song_mid === '003JTKt01gi5jR' && track?.netease_song_id === '3338126483' && track?.kuwo_rid === '501737982'
+    },
+  ],
 ]
 
 const failures = checks.filter(([, check]) => !check()).map(([label]) => label)

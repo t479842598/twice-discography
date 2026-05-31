@@ -34,9 +34,14 @@ export function parseSourceList(value?: string | null): MusicSource[] {
 
 export function normalizeSourceOrder(value?: MusicSource[] | null): MusicSource[] {
   const normalized = (value ?? []).filter(isMusicSource)
-  const merged = [...normalized, ...MUSIC_SOURCE_ORDER]
 
-  return Array.from(new Set(merged))
+  // 如果提供了自定义音源列表，只使用这些音源，不自动补全
+  if (normalized.length > 0) {
+    return Array.from(new Set(normalized))
+  }
+
+  // 如果没有提供，使用默认的所有音源
+  return [...MUSIC_SOURCE_ORDER]
 }
 
 export function sourcePriority(source: MusicSource, sourceOrder: MusicSource[] = MUSIC_SOURCE_ORDER as unknown as MusicSource[]) {

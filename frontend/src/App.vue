@@ -22,12 +22,23 @@ const themeStore = useThemeStore()
 
 const themeOverrides: GlobalThemeOverrides = {
   common: {
-    primaryColor: '#df6f86',
-    primaryColorHover: '#c95f76',
-    primaryColorPressed: '#a94f64',
-    primaryColorSuppl: '#f3a8b7',
-    borderRadius: '8px',
+    primaryColor: '#ff6b9d',
+    primaryColorHover: '#ff8cb3',
+    primaryColorPressed: '#e91e63',
+    primaryColorSuppl: '#ffb3d9',
+    borderRadius: '12px',
     fontFamily: 'Outfit, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  Button: {
+    borderRadiusLarge: '16px',
+    borderRadiusMedium: '12px',
+    fontWeightStrong: '700',
+  },
+  Card: {
+    borderRadius: '18px',
+  },
+  Input: {
+    borderRadius: '12px',
   },
 }
 

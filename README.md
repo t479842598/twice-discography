@@ -16,7 +16,7 @@
 
 ## 页面截图
 
-截图统一放在 `docs/screenshots/`。当前截图均按 `1920 × 1080` 大屏视口截取，覆盖所有前端路由和全局播放器状态。
+截图统一放在 `docs/screenshots/`。桌面截图按 `1920 × 1080` 视口截取，移动端播放器按 `780 × 1688` 高清移动视口截取。
 
 ![截图总览](docs/screenshots/screenshot-overview.png)
 
@@ -33,8 +33,8 @@
 | 翻唱 / Pre-debut | `/covers` | ![翻唱](docs/screenshots/covers.png) |
 | 成员列表 | `/members` | ![成员列表](docs/screenshots/members.png) |
 | 成员详情 | `/members/nayeon` | ![成员详情](docs/screenshots/member-detail.png) |
-| 全局搜索 | `/search?q=FANCY` | ![全局搜索](docs/screenshots/search.png) |
 | 全局播放器 | 任意歌曲播放后 | ![全局播放器](docs/screenshots/player.png) |
+| 移动端播放器 | `780 × 1688` 高清移动视口 | ![移动端播放器](docs/screenshots/player-mobile.png) |
 
 建议补拍规则：
 
@@ -48,7 +48,7 @@
 - **成员资料**：9 位成员资料、国籍旗帜、个人简介、参与曲目。
 - **作品分类**：支持 Solo、小分队、MISAMO、广告曲、翻唱、Pre-debut 资料。
 - **多语言字段**：中文、英文、日文、韩文标题与说明。
-- **全局搜索**：搜索专辑、歌曲、成员、广告合作和翻唱。
+- **顶部搜索直达**：在导航栏搜索专辑、歌曲、成员、广告合作和翻唱，并自动跳转到最佳匹配结果。
 - **多源播放**：QQ 音乐、网易云音乐、酷我、JOOX 候选音源与歌词展示。
 - **响应式界面**：桌面端与移动端布局适配，支持暗色主题。
 - **生产一体服务**：`pnpm build` 后由 Fastify 同时服务 API 与前端静态文件。
@@ -208,7 +208,7 @@ pnpm dev
 | `GET /api/members/:id` | 成员详情 |
 | `GET /api/cfs` | 广告曲列表 |
 | `GET /api/covers` | 翻唱列表 |
-| `GET /api/search?q=` | 全局搜索 |
+| `GET /api/search?q=` | 内容搜索 API，供顶部搜索直达使用 |
 | `GET /api/music/search?q=` | 音乐源搜索 |
 | `GET /api/tracks/:id/music-candidates` | 歌曲音源候选 |
 | `GET /api/tracks/:id/playback?source=` | 获取播放链接与歌词 |
@@ -315,6 +315,35 @@ pnpm start
 ```bash
 curl http://127.0.0.1:3000/health
 ```
+
+#### 4.1 一键启动 / 关闭脚本（推荐）
+
+仓库内提供了 Linux 服务器脚本，可在 Ubuntu / Debian / CentOS 等常见发行版上直接运行：
+
+```bash
+# 首次运行：自动安装依赖、构建前后端、后台启动服务
+chmod +x start-linux.sh stop-linux.sh scripts/linux/*.sh
+./start-linux.sh
+
+# 指定端口和监听地址
+./start-linux.sh --port 3000 --host 0.0.0.0
+
+# 已安装并构建过时，可跳过安装/构建，加快重启
+./start-linux.sh --skip-install --skip-build
+
+# 关闭服务
+./stop-linux.sh
+
+# 如果使用了自定义端口，关闭时也传同一个端口
+./stop-linux.sh --port 3001
+```
+
+脚本说明：
+
+- 首次运行会自动创建 `.env`、执行 `pnpm install --frozen-lockfile` 和 `pnpm build`。
+- 后台进程 PID 与日志保存在 `.codex-run/`，该目录不会提交到 Git。
+- 默认访问地址为 `http://服务器IP:3000`，本机可用 `http://127.0.0.1:3000`。
+- 生产环境建议配合 Nginx / Caddy 做域名、HTTPS 和反向代理。
 
 #### 5. 使用 PM2 后台运行
 
@@ -454,6 +483,31 @@ pnpm install --frozen-lockfile
 pnpm build
 pnpm start
 ```
+
+#### 2.1 一键启动 / 关闭脚本（推荐）
+
+仓库内提供了 Windows 服务器脚本：
+
+```powershell
+# 首次启动：自动安装依赖、构建前后端、后台启动服务
+.\start-windows.cmd
+
+# 指定端口启动
+.\start-windows.cmd -Port 3000 -HostAddress 0.0.0.0
+
+# 已经安装并构建过时，可跳过安装/构建，加快重启
+.\start-windows.cmd -SkipInstall -SkipBuild
+
+# 关闭服务
+.\stop-windows.cmd
+```
+
+脚本说明：
+
+- 首次运行会自动创建 `.env`、执行 `pnpm install --frozen-lockfile` 和 `pnpm build`。
+- 后台进程 PID 与日志保存在 `.codex-run/`，该目录不会提交到 Git。
+- 默认访问地址为 `http://服务器IP:3000`，本机可用 `http://127.0.0.1:3000`。
+- 如果要换端口，启动和关闭都可以加 `-Port`，例如 `.\stop-windows.cmd -Port 3001`。
 
 生产 `.env` 示例：
 
@@ -807,6 +861,8 @@ pnpm seed
 - 查看后端日志中的音乐源错误。
 
 ## 数据与版权说明
+
+© 2026 [t479842598](https://github.com/t479842598). All rights reserved.
 
 本项目用于学习、资料整理与技术演示。音乐、图片、视频、商标与艺人相关内容版权归对应权利方所有。部署公开站点时，请确保所使用的媒体素材、封面、视频背景、歌词与播放源符合当地法律和平台规则。
 

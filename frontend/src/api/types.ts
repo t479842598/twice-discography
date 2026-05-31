@@ -38,6 +38,9 @@ export interface Track {
   note: MultiLangText
   musicSquareQuery: string | null
   musicSquarePreferred: string | null
+  ytVideoId?: string | null
+  biliBvid?: string | null
+  biliPage?: number | null
 }
 
 export interface Member {
@@ -50,6 +53,7 @@ export interface Member {
   mbti: string | null
   zodiac: string | null
   debutDate: string | null
+  nationality: string
   nationalityCode: string
   flagEmoji: string
   positions: string[]
