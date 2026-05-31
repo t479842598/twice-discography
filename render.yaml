@@ -1,0 +1,33 @@
+# Render 部署配置文件
+# 文档：https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: twice-api
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    buildCommand: npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile && pnpm build:backend
+    startCommand: pnpm --filter backend start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_PORT
+        value: 10000
+      - key: BACKEND_HOST
+        value: 0.0.0.0
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/data/twice.db
+      - key: SERVE_FRONTEND
+        value: false
+      - key: STATIC_PREFIX
+        value: /static
+      # 以下两个变量需要在 Render 控制台手动填写前端 URL
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
