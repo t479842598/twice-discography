@@ -345,6 +345,37 @@ chmod +x start-linux.sh stop-linux.sh scripts/linux/*.sh
 - 默认访问地址为 `http://服务器IP:3000`，本机可用 `http://127.0.0.1:3000`。
 - 生产环境建议配合 Nginx / Caddy 做域名、HTTPS 和反向代理。
 
+#### 4.2 发布端口怎么改
+
+项目真正监听的端口由 `BACKEND_PORT` 决定；一体部署时，前端页面和 API 都走这个端口。
+
+Linux 临时改端口：
+
+```bash
+./start-linux.sh --port 3001
+```
+
+Linux 固定改端口：
+
+```env
+BACKEND_PORT=3001
+BACKEND_HOST=0.0.0.0
+```
+
+如果你已经构建过，改端口后可以直接重启：
+
+```bash
+./stop-linux.sh --port 3000
+./start-linux.sh --port 3001 --skip-install --skip-build
+```
+
+改完后一起检查：
+
+- 反向代理目标端口是否同步修改。
+- 防火墙是否放行了新端口。
+- 健康检查地址是否改成 `http://127.0.0.1:3001/health`。
+- 如果直接暴露端口，对外访问地址是否改成 `http://服务器IP:3001`。
+
 #### 5. 使用 PM2 后台运行
 
 ```bash
@@ -509,6 +540,35 @@ pnpm start
 - 默认访问地址为 `http://服务器IP:3000`，本机可用 `http://127.0.0.1:3000`。
 - 如果要换端口，启动和关闭都可以加 `-Port`，例如 `.\stop-windows.cmd -Port 3001`。
 
+#### 2.2 发布端口怎么改
+
+Windows 下最直接的方式是启动时传端口：
+
+```powershell
+.\start-windows.cmd -Port 3001
+```
+
+如果想长期固定，就把 `.env` 改成：
+
+```env
+BACKEND_PORT=3001
+BACKEND_HOST=0.0.0.0
+```
+
+然后重启服务：
+
+```powershell
+.\stop-windows.cmd -Port 3000
+.\start-windows.cmd -Port 3001 -SkipInstall -SkipBuild
+```
+
+改完后一起检查：
+
+- 防火墙开放的新端口是否和实际运行端口一致。
+- Nginx / IIS / 宝塔 / 云负载均衡反向代理端口是否同步修改。
+- 健康检查地址是否改成 `http://127.0.0.1:3001/health`。
+- 对外访问地址是否改成 `http://服务器IP:3001`。
+
 生产 `.env` 示例：
 
 ```env
@@ -612,6 +672,12 @@ SPA 刷新 404 处理：
 - **正式部署**：VPS + Nginx + PM2 + SQLite 文件备份。
 - **低维护分离部署**：Cloudflare Pages / Vercel / Netlify 托管前端，Render / Railway / Fly.io 托管后端。
 - **已有域名且想快速上线**：Render 一体服务或 Railway 一体服务，等访问量上来再迁移 VPS。
+
+改发布端口时的原则：
+
+- 平台如果明确指定监听端口，就把 `BACKEND_PORT` 设成平台要求的值。
+- 平台如果只给你 `PORT`，就在平台环境变量里再新增一个同值的 `BACKEND_PORT`。
+- 改完端口后重新部署，并确认 `/health` 可以访问。
 
 ## 云平台一体部署示例
 
