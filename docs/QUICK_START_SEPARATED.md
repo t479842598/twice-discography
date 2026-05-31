@@ -25,15 +25,20 @@
 ```
 Name: twice-api
 Region: Singapore
-Build Command: corepack enable && corepack prepare pnpm@9.7.0 --activate && pnpm install --frozen-lockfile && pnpm build:backend
+Build Command: npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile --prod=false && pnpm build:backend
 Start Command: pnpm --filter backend start
 ```
+
+> ⚠️ **重要：**
+> - 不要用 `corepack enable`（Render 文件系统只读，会报错）
+> - 构建命令必须加 `--prod=false`，否则 TypeScript 类型定义（devDependencies）不会安装，编译会失败
 
 ### 3. 添加环境变量
 
 点击 **Advanced** → **Add Environment Variable**：
 
 ```bash
+NODE_VERSION=20.18.0
 NODE_ENV=production
 BACKEND_PORT=10000
 BACKEND_HOST=0.0.0.0
@@ -43,6 +48,8 @@ FRONTEND_ORIGIN=https://临时占位.pages.dev
 CORS_ORIGIN=https://临时占位.pages.dev
 STATIC_PREFIX=/static
 ```
+
+> ⚠️ **必须添加 `NODE_VERSION=20.18.0`**，否则 Render 默认用 Node.js 26，会导致 better-sqlite3 编译失败。
 
 ### 4. 部署并获取 URL
 
