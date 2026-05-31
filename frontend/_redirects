@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA 路由回退配置
+# 所有非文件请求都返回 index.html（Vue Router history 模式）
+/*    /index.html   200

@@ -19,9 +19,16 @@ const __dirname = path.dirname(__filename)
 export function buildServer() {
   const app = Fastify({ logger: true })
   const frontendDist = path.resolve(__dirname, '../../frontend/dist')
+  const serveFrontend = process.env.SERVE_FRONTEND !== 'false'
+
+  // 支持多个前端域名（用于前后端分离部署）
+  const frontendOrigins = process.env.FRONTEND_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
+  const allowedOrigins = [...new Set([...frontendOrigins, ...corsOrigins])]
 
   app.register(cors, {
-    origin: process.env.CORS_ORIGIN?.split(',') ?? true,
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    credentials: true,
   })
 
   app.register(helmet, {
@@ -63,12 +70,18 @@ export function buildServer() {
     prefix: process.env.STATIC_PREFIX ?? '/static/',
   })
 
-  if (fs.existsSync(frontendDist)) {
+  // 只在单体部署模式下提供前端静态文件
+  if (serveFrontend && fs.existsSync(frontendDist)) {
     app.register(fastifyStatic, {
       root: frontendDist,
       prefix: '/',
       decorateReply: false,
     })
+    app.log.info('前端静态文件服务已启用（单体部署模式）')
+  } else if (serveFrontend) {
+    app.log.warn('SERVE_FRONTEND=true 但前端构建目录不存在，请先运行 pnpm build:frontend')
+  } else {
+    app.log.info('前端静态文件服务已禁用（前后端分离模式）')
   }
 
   app.get('/health', async () => ({ ok: true }))
@@ -77,7 +90,8 @@ export function buildServer() {
   app.register(registerMusicRoutes, { prefix: '/api/music' })
   app.register(registerTrackRoutes, { prefix: '/api/tracks' })
 
-  if (fs.existsSync(frontendDist)) {
+  // 只在单体部署模式下设置 SPA 回退
+  if (serveFrontend && fs.existsSync(frontendDist)) {
     app.setNotFoundHandler((request, reply) => {
       if (request.raw.url?.startsWith('/api/') || request.raw.url === '/health') {
         return reply.code(404).send({ error: 'not_found' })

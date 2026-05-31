@@ -7,12 +7,18 @@
 
 ## 项目简介
 
-`twice-discography` 是一个前后端一体的 TWICE 曲库网站。前端使用 Vue 3 + Vite + Naive UI，后端使用 Fastify + SQLite，生产环境中后端会同时提供 API 与 `frontend/dist` 静态页面。
+`twice-discography` 是一个 TWICE 曲库网站。前端使用 Vue 3 + Vite + Naive UI，后端使用 Fastify + SQLite。
 
-适合两种部署方式：
+**支持两种部署方式：**
 
-- **前后端一体部署**：构建后只启动一个 Node.js 服务，访问同一个域名即可使用页面与 `/api`。
-- **前后端分离部署**：前端放到 Vercel / Netlify / Cloudflare Pages，后端放到 VPS / Render / Railway / Fly.io 等 Node 平台。
+- **前后端分离部署**（推荐）：前端部署到 CDN（Cloudflare Pages / Vercel / Netlify），后端独立部署（Render / Railway / VPS），性能更好，国内访问更快。
+- **单体部署**：构建后只启动一个 Node.js 服务，后端同时提供 API 与前端静态文件，部署更简单。
+
+**📖 部署文档：**
+- [前后端分离部署指南](docs/DEPLOYMENT_SEPARATED.md)（推荐，免费方案，国内可访问）
+- [单体部署指南](#推荐方案-a-linux-vps-一体部署)（见下文）
+- [前后端分离部署指南](docs/DEPLOYMENT_SEPARATED.md)（推荐，免费方案，国内可访问）
+- [单体部署指南](#推荐方案-a：linux-vps-一体部署)（见下文）
 
 ## 页面截图
 
