@@ -17,8 +17,6 @@
 **📖 部署文档：**
 - [前后端分离部署指南](docs/DEPLOYMENT_SEPARATED.md)（推荐，免费方案，国内可访问）
 - [单体部署指南](#推荐方案-a-linux-vps-一体部署)（见下文）
-- [前后端分离部署指南](docs/DEPLOYMENT_SEPARATED.md)（推荐，免费方案，国内可访问）
-- [单体部署指南](#推荐方案-a：linux-vps-一体部署)（见下文）
 
 ## 页面截图
 
