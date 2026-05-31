@@ -76,9 +76,11 @@ STATIC_PREFIX=/static
 ```
 Project name: twice-discography
 Production branch: main
-Build command: cd frontend && npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile && pnpm build
+Build command: npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile --prod=false && pnpm build:frontend
 Build output directory: frontend/dist
 ```
+
+> ⚠️ **重要：** 前端构建命令也要加 `--prod=false`，否则 vite、vue-tsc 等构建工具（在 devDependencies 中）不会安装，构建会失败。
 
 ### 3. 添加环境变量
 

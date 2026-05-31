@@ -30,7 +30,7 @@
 | **Branch** | `main` |
 | **Root Directory** | 留空（使用仓库根目录） |
 | **Runtime** | `Node` |
-| **Build Command** | `corepack enable && corepack prepare pnpm@9.7.0 --activate && pnpm install --frozen-lockfile && pnpm build:backend` |
+| **Build Command** | `npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile --prod=false && pnpm build:backend` |
 | **Start Command** | `pnpm --filter backend start` |
 | **Instance Type** | `Free` |
 
@@ -39,6 +39,7 @@
 在 Render 的 **Environment** 标签页添加以下环境变量：
 
 ```bash
+NODE_VERSION=20.18.0
 NODE_ENV=production
 BACKEND_PORT=10000
 BACKEND_HOST=0.0.0.0
@@ -48,6 +49,8 @@ FRONTEND_ORIGIN=https://your-frontend.pages.dev
 CORS_ORIGIN=https://your-frontend.pages.dev
 STATIC_PREFIX=/static
 ```
+
+> ⚠️ `NODE_VERSION=20.18.0` 必须设置，否则 Render 默认用 Node.js 26，会导致 better-sqlite3 原生模块编译失败。
 
 **重要说明：**
 - `BACKEND_PORT=10000` 是 Render 的默认端口
@@ -101,7 +104,7 @@ STATIC_PREFIX=/static
 | **Project name** | `twice-discography`（或您喜欢的名字） |
 | **Production branch** | `main` |
 | **Framework preset** | `None`（手动配置） |
-| **Build command** | `cd frontend && npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile && pnpm build` |
+| **Build command** | `npm install -g pnpm@9.7.0 && pnpm install --frozen-lockfile --prod=false && pnpm build:frontend` |
 | **Build output directory** | `frontend/dist` |
 | **Root directory** | 留空 |
 
