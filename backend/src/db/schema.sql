@@ -91,6 +91,77 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_music_assets_identity ON music_assets (sou
 CREATE INDEX IF NOT EXISTS idx_music_assets_track_status ON music_assets (track_id, status);
 CREATE INDEX IF NOT EXISTS idx_music_assets_status ON music_assets (status);
 
+CREATE TABLE IF NOT EXISTS music_lyrics (
+  id TEXT PRIMARY KEY,
+  track_id TEXT,
+  source TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  lrc TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_music_lyrics_identity ON music_lyrics (source, provider_id);
+CREATE INDEX IF NOT EXISTS idx_music_lyrics_track_source ON music_lyrics (track_id, source);
+
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  disabled INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_roles (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_user_roles (
+  user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  role_id TEXT NOT NULL REFERENCES admin_roles(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at ON admin_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS bili_credentials (
+  id TEXT PRIMARY KEY,
+  encrypted_cookie TEXT NOT NULL,
+  iv TEXT NOT NULL,
+  auth_tag TEXT NOT NULL,
+  last_verified_at INTEGER,
+  last_verify_status TEXT,
+  last_verify_message TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mv_configs (
+  track_id TEXT PRIMARY KEY,
+  bili_bvid TEXT,
+  bili_page INTEGER NOT NULL DEFAULT 1,
+  cover_url TEXT,
+  aspect_ratio TEXT NOT NULL DEFAULT '16 / 9',
+  is_home_featured INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mv_configs_enabled_home ON mv_configs (enabled, is_home_featured, sort_order);
 CREATE TABLE IF NOT EXISTS members (
   id TEXT PRIMARY KEY,
   name_zh TEXT NOT NULL,
@@ -179,3 +250,4 @@ CREATE TABLE IF NOT EXISTS covers (
   note_ja TEXT,
   note_ko TEXT
 );
+

@@ -49,3 +49,11 @@ services:
         value: twice-music-assets
       - key: R2_PUBLIC_BASE_URL
         value: https://cdn2.479842598.xyz
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false
+      - key: BILI_CREDENTIAL_ENCRYPTION_KEY
+        sync: false
+      - key: MV_PROXY_SIGNING_SECRET
+        sync: false
+      - key: MV_PROXY_BASE_URL
+        sync: false

@@ -9,12 +9,15 @@ import fastifyStatic from '@fastify/static'
 import { registerCatalogRoutes } from './routes/catalog.js'
 import { registerMetaRoutes } from './routes/meta.js'
 import { registerMusicRoutes } from './routes/music.js'
+import { registerMvRoutes } from './routes/mv.js'
 import { registerTrackRoutes } from './routes/tracks.js'
-
-dotenv.config()
+import { registerAdminRoutes } from './routes/admin.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+dotenv.config()
 
 export function buildServer() {
   const app = Fastify({ logger: true })
@@ -24,7 +27,21 @@ export function buildServer() {
   // 支持多个前端域名（用于前后端分离部署）
   const frontendOrigins = process.env.FRONTEND_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
   const corsOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
-  const allowedOrigins = [...new Set([...frontendOrigins, ...corsOrigins])]
+  const localDevOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000']
+  const allowedOrigins = [...new Set([...frontendOrigins, ...corsOrigins, ...localDevOrigins])]
+  const optionalOrigin = (value?: string) => {
+    if (!value) return ''
+    try {
+      return new URL(value).origin
+    } catch {
+      return ''
+    }
+  }
+  const connectOrigins = [...new Set([
+    optionalOrigin(process.env.VITE_API_BASE),
+    optionalOrigin(process.env.MV_PROXY_BASE_URL),
+    ...allowedOrigins,
+  ].filter(Boolean))]
 
   app.register(cors, {
     origin: allowedOrigins.length > 0 ? allowedOrigins : true,
@@ -36,7 +53,9 @@ export function buildServer() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        styleSrcElem: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         mediaSrc: ["'self'", 'https:', 'blob:'],
         connectSrc: [
@@ -50,6 +69,8 @@ export function buildServer() {
           'https://isure6.stream.qqmusic.qq.com',
           'https://kw-lv.kuwo.cn',
           'https://hk.stream.music.joox.com',
+          'https://twice-discography.onrender.com',
+          ...connectOrigins,
         ],
         frameSrc: [
           "'self'",
@@ -88,7 +109,9 @@ export function buildServer() {
   app.register(registerCatalogRoutes, { prefix: '/api' })
   app.register(registerMetaRoutes, { prefix: '/api/meta' })
   app.register(registerMusicRoutes, { prefix: '/api/music' })
+  app.register(registerMvRoutes, { prefix: '/api/mv' })
   app.register(registerTrackRoutes, { prefix: '/api/tracks' })
+  app.register(registerAdminRoutes, { prefix: '/api/admin' })
 
   // 只在单体部署模式下设置 SPA 回退
   if (serveFrontend && fs.existsSync(frontendDist)) {
@@ -118,5 +141,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1)
   })
 }
+
 
 

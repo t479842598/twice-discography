@@ -57,7 +57,7 @@ function parseLrc(lrc: string): LyricLine[] {
   if (!lrc) return []
 
   const lines: LyricLine[] = []
-  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g
+  const timeRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g
 
   lrc.split('\n').forEach((line) => {
     const matches = [...line.matchAll(timeRegex)]
@@ -69,14 +69,20 @@ function parseLrc(lrc: string): LyricLine[] {
     matches.forEach((match) => {
       const minutes = Number.parseInt(match[1], 10)
       const seconds = Number.parseInt(match[2], 10)
-      const milliseconds = Number.parseInt(match[3].padEnd(3, '0'), 10)
+      const milliseconds = match[3] ? Number.parseInt(match[3].padEnd(3, '0'), 10) : 0
       const time = minutes * 60 + seconds + milliseconds / 1000
 
       lines.push({ time, text })
     })
   })
 
-  return lines.sort((a, b) => a.time - b.time)
+  if (lines.length > 0) return lines.sort((a, b) => a.time - b.time)
+
+  return lrc
+    .split('\n')
+    .map((line) => line.replace(/\[[^\]]+\]/g, '').trim())
+    .filter(Boolean)
+    .map((text, index) => ({ time: index * 4, text }))
 }
 
 // 根据当前时间找到当前歌词行

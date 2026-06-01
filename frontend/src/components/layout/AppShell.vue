@@ -67,6 +67,20 @@
             </svg>
           </n-button>
         </n-dropdown>
+        <div class="admin-auth-slot">
+          <RouterLink v-if="!adminLoggedIn" class="admin-login-link" to="/admin/login">登录</RouterLink>
+          <n-dropdown v-else trigger="click" :options="adminAccountMenuOptions" @select="handleAdminAccountSelect">
+            <button class="admin-account-button" type="button" :title="`已登录：${adminDisplayName}`">
+              <span class="admin-account-avatar">{{ adminInitial }}</span>
+              <span class="admin-account-name">{{ adminDisplayName }}</span>
+              <span class="admin-account-caret" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+          </n-dropdown>
+        </div>
       </div>
     </n-layout-header>
 
@@ -85,10 +99,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import type { DropdownOption } from 'naive-ui'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { api } from '@/api/client'
-import type { Album, CfSong, Cover, Member, Track } from '@/api/types'
+import type { AdminUser, Album, CfSong, Cover, Member, Track } from '@/api/types'
 import MiniAudioBar from '@/components/player/MiniAudioBar.vue'
 import { useI18n } from '@/i18n'
 import { isLocaleCode } from '@/i18n/messages'
@@ -99,12 +114,14 @@ import { pickText } from '@/utils/text'
 const localeStore = useLocaleStore()
 const themeStore = useThemeStore()
 const router = useRouter()
+const route = useRoute()
 const { localeLabels, supportedLocales, t } = useI18n()
 const siteVideoReady = ref(false)
 const siteVideoRef = ref<HTMLVideoElement | null>(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchHint = ref('')
+const adminUser = ref<AdminUser | null>(null)
 const isMobile = ref(detectMobile())
 const siteBackgroundImage = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
 const siteBackgroundVideo = import.meta.env.VITE_SITE_BG_VIDEO || import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4'
@@ -113,9 +130,24 @@ const localeDropdownOptions = computed(() => supportedLocales.map((locale) => ({
   key: locale,
   label: localeLabels[locale],
 })))
+const adminLoggedIn = computed(() => Boolean(adminUser.value))
+const adminDisplayName = computed(() => adminUser.value?.displayName || adminUser.value?.email || 'Admin')
+const adminInitial = computed(() => adminDisplayName.value.trim().slice(0, 1).toUpperCase() || 'A')
+const adminAccountMenuOptions = computed<DropdownOption[]>(() => {
+  const canManageUsers = adminUser.value?.roles.includes('owner')
+  return [
+    { key: 'admin-summary', label: `当前账号：${adminDisplayName.value}`, disabled: true },
+    { key: 'admin', label: '管理后台' },
+    { key: 'admin-mvs', label: 'MV 管理' },
+    { key: 'admin-bili', label: 'B站凭证' },
+    ...(canManageUsers ? [{ key: 'admin-users', label: '用户与角色' } as DropdownOption] : []),
+    { key: 'logout', label: '退出登录' },
+  ]
+})
 
 onMounted(async () => {
   isMobile.value = detectMobile()
+  void refreshAdminState()
   if (isMobile.value) return
 
   await nextTick()
@@ -127,6 +159,46 @@ onMounted(async () => {
     siteVideoReady.value = siteVideoRef.value ? siteVideoRef.value.readyState >= 2 : false
   })
 })
+
+async function refreshAdminState() {
+  try {
+    adminUser.value = (await api.adminMe()).user
+  } catch {
+    adminUser.value = null
+  }
+}
+
+async function logoutAdmin() {
+  await api.adminLogout().catch(() => undefined)
+  adminUser.value = null
+  if (route.path.startsWith('/admin')) {
+    await router.push('/admin/login')
+  }
+}
+
+function handleAdminAccountSelect(key: string | number) {
+  const selected = String(key)
+  if (selected === 'logout') {
+    void logoutAdmin()
+    return
+  }
+
+  const targets: Record<string, string> = {
+    admin: '/admin',
+    'admin-mvs': '/admin/mvs',
+    'admin-bili': '/admin/settings/bilibili',
+    'admin-users': '/admin/users',
+  }
+  const target = targets[selected]
+  if (target) void router.push(target)
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    void refreshAdminState()
+  },
+)
 
 function detectMobile() {
   if (typeof window === 'undefined') return false

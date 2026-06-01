@@ -165,3 +165,59 @@ export interface MusicResolveResponse {
 
 
 
+
+export interface AdminUser {
+  id: string
+  email: string
+  displayName: string
+  roles: string[]
+}
+
+export interface AdminRole {
+  id: string
+  label: string
+  system: boolean
+  createdAt: number
+}
+
+export interface AdminMvConfig {
+  trackId: string
+  titleZh: string | null
+  titleEn: string | null
+  albumName: string | null
+  fallbackBiliBvid: string | null
+  fallbackBiliPage: number | null
+  fallbackYtVideoId: string | null
+  biliBvid: string | null
+  biliPage: number
+  coverUrl: string | null
+  aspectRatio: string
+  isHomeFeatured: boolean
+  sortOrder: number
+  enabled: boolean
+}
+
+export interface AdminMvListResponse {
+  mvs: AdminMvConfig[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface BiliVideoMeta {
+  biliBvid: string
+  biliPage: number
+  coverUrl: string | null
+  title: string | null
+  pages: Array<{ page: number; cid: number; part: string | null }>
+}
+
+export interface MvPlaybackResponse {
+  trackId: string
+  source: 'bilibili-proxy' | 'bilibili-iframe'
+  quality: number | null
+  videoUrl: string | null
+  expiresAt: number | null
+  fallbackIframeUrl: string
+  message: string
+}

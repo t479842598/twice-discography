@@ -42,6 +42,7 @@
   <MvPlayer
     v-model:show="showMvPlayer"
     :title="currentMvTrack ? pickText(currentMvTrack.title, localeStore.locale) : ''"
+    :track-id="currentMvTrack?.id"
     :yt-video-id="currentMvTrack?.ytVideoId"
     :bili-bvid="currentMvTrack?.biliBvid"
     :bili-page="currentMvTrack?.biliPage"
@@ -109,3 +110,5 @@ watch(() => props.tracks, prefetchVisibleTracks)
   transform: scale(1.05);
 }
 </style>
+
+

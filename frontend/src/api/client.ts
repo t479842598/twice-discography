@@ -1,4 +1,9 @@
 import type {
+  AdminMvConfig,
+  AdminMvListResponse,
+  AdminRole,
+  AdminUser,
+  BiliVideoMeta,
   Album,
   CatalogOverview,
   CfSong,
@@ -7,6 +12,7 @@ import type {
   MusicCandidate,
   MusicResolveResponse,
   MusicSearchResponse,
+  MvPlaybackResponse,
   PlaybackResponse,
   Track,
 } from './types'
@@ -25,9 +31,15 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers)
+  if (options.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json')
+  }
+
   const response = await fetch(`${baseUrl}${path}`, {
-    headers: { 'content-type': 'application/json' },
     ...options,
+    credentials: 'include',
+    headers,
   })
   const text = await response.text()
   const payload = text ? JSON.parse(text) : null
@@ -70,7 +82,7 @@ export const api = {
       source: params.source,
       providerId: params.providerId,
     })
-    if (params.quality) search.set('quality', params.quality)
+    if (params.quality) search.set('quality', String(params.quality))
     return request<MusicResolveResponse>(`/music/resolve?${search.toString()}`)
   },
   musicCandidates: (trackId: string) => request<{ trackId: string; selectedSource: string | null; recommendedSource: string; candidates: MusicCandidate[] }>(`/tracks/${encodeURIComponent(trackId)}/music-candidates`),
@@ -78,4 +90,31 @@ export const api = {
     const query = source ? `?source=${encodeURIComponent(source)}` : ''
     return request<PlaybackResponse>(`/tracks/${encodeURIComponent(trackId)}/playback${query}`)
   },
+  adminLogin: (email: string, password: string) => request<{ user: AdminUser }>('/admin/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  adminLogout: () => request<{ ok: boolean }>('/admin/auth/logout', { method: 'POST' }),
+  adminMe: () => request<{ user: AdminUser }>('/admin/me'),
+  adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
+  adminCreateUser: (input: { email: string; displayName: string; password: string; roles: string[] }) => request<{ user: AdminUser }>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
+  adminUpdateUser: (id: string, input: { displayName?: string; password?: string; roles?: string[]; disabled?: boolean }) => request<{ user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  adminRoles: () => request<{ roles: AdminRole[] }>('/admin/roles'),
+  adminCreateRole: (input: { id: string; label: string }) => request<{ role: AdminRole }>('/admin/roles', { method: 'POST', body: JSON.stringify(input) }),
+  adminUpdateRole: (id: string, input: { label: string }) => request<{ role: AdminRole }>(`/admin/roles/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  adminDeleteRole: (id: string) => request<{ ok: boolean }>(`/admin/roles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  adminMvs: (params: { q?: string; page?: number; pageSize?: number; onlyWithMv?: boolean; titleOnly?: boolean } = {}) => {
+    const search = new URLSearchParams()
+    if (params.q) search.set('q', params.q)
+    if (params.page) search.set('page', String(params.page))
+    if (params.pageSize) search.set('pageSize', String(params.pageSize))
+    if (params.onlyWithMv) search.set('onlyWithMv', 'true')
+    if (params.titleOnly) search.set('titleOnly', 'true')
+    const query = search.toString()
+    return request<AdminMvListResponse>(`/admin/mvs${query ? `?${query}` : ``}`)
+  },
+  adminParseBiliMv: (url: string) => request<{ meta: BiliVideoMeta }>('/admin/mvs/parse-bili', { method: 'POST', body: JSON.stringify({ url }) }),
+  adminSaveMv: (input: Partial<AdminMvConfig> & { trackId: string }) => request<{ mv: AdminMvConfig }>('/admin/mvs', { method: 'POST', body: JSON.stringify(input) }),
+  adminBiliCredential: () => request<{ configured: boolean; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null }>('/admin/bili-credential'),
+  adminSaveBiliCredential: (cookie: string) => request('/admin/bili-credential', { method: 'PUT', body: JSON.stringify({ cookie }) }),
+  adminVerifyBiliCredential: () => request<{ ok: boolean; message: string }>('/admin/bili-credential/verify', { method: 'POST' }),
+  mvPlayback: (trackId: string) => request<MvPlaybackResponse>(`/mv/${encodeURIComponent(trackId)}/playback`),
 }
+

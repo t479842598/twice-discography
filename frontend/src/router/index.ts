@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { api } from '@/api/client'
 import HomeView from '@/views/HomeView.vue'
 import YearView from '@/views/YearView.vue'
 import AlbumsView from '@/views/AlbumsView.vue'
@@ -10,6 +11,11 @@ import CoversView from '@/views/CoversView.vue'
 import MembersView from '@/views/MembersView.vue'
 import MemberDetailView from '@/views/MemberDetailView.vue'
 import MusicStationView from '@/views/MusicStationView.vue'
+import AdminBiliSettingsView from '@/views/AdminBiliSettingsView.vue'
+import AdminDashboardView from '@/views/AdminDashboardView.vue'
+import AdminLoginView from '@/views/AdminLoginView.vue'
+import AdminMvsView from '@/views/AdminMvsView.vue'
+import AdminUsersView from '@/views/AdminUsersView.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,8 +32,23 @@ export const router = createRouter({
     { path: '/members', name: 'members', component: MembersView },
     { path: '/members/:id', name: 'member-detail', component: MemberDetailView },
     { path: '/music-station', name: 'music-station', component: MusicStationView },
+    { path: '/admin/login', name: 'admin-login', component: AdminLoginView },
+    { path: '/admin', name: 'admin-dashboard', component: AdminDashboardView },
+    { path: '/admin/mvs', name: 'admin-mvs', component: AdminMvsView },
+    { path: '/admin/users', name: 'admin-users', component: AdminUsersView },
+    { path: '/admin/settings/bilibili', name: 'admin-bili-settings', component: AdminBiliSettingsView },
   ],
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach(async (to) => {
+  if (!to.path.startsWith('/admin') || to.path === '/admin/login') return true
+  try {
+    await api.adminMe()
+    return true
+  } catch {
+    return { path: '/admin/login', query: { redirect: to.fullPath } }
+  }
 })

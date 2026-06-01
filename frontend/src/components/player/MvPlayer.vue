@@ -8,20 +8,23 @@
     @after-leave="stopVideo"
   >
     <div class="mv-player-container">
+      <video
+        v-if="proxyVideoUrl"
+        ref="videoRef"
+        class="mv-player-video"
+        :src="proxyVideoUrl"
+        controls
+        playsinline
+        :autoplay="!isMobile"
+      />
       <iframe
-        v-if="ytVideoId"
-        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=${isMobile ? 0 : 1}&rel=0`"
+        v-else-if="iframeUrl"
+        :src="iframeUrl"
         class="mv-player-iframe"
         frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen
-      />
-      <iframe
-        v-else-if="biliBvid"
-        :src="`https://player.bilibili.com/player.html?bvid=${biliBvid}&page=${biliPage || 1}&autoplay=${isMobile ? 0 : 1}&high_quality=1`"
-        class="mv-player-iframe"
-        frameborder="0"
-        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
       />
       <n-empty v-else :description="t('mv.noLink')">
         <template #extra>
@@ -29,8 +32,12 @@
         </template>
       </n-empty>
     </div>
-    <div v-if="ytVideoId || biliBvid" class="mv-player-tips">
-      <p v-if="isMobile && !videoLoaded">
+    <div v-if="ytVideoId || biliBvid || playbackMessage" class="mv-player-tips">
+      <p v-if="playbackMessage">
+        <n-icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></n-icon>
+        {{ playbackMessage }}
+      </p>
+      <p v-else-if="isMobile && !videoLoaded">
         <n-icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></n-icon>
         {{ t('mv.loadTip') }}
       </p>
@@ -47,7 +54,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { api } from '@/api/client'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -55,6 +63,7 @@ const { t } = useI18n()
 const props = defineProps<{
   show: boolean
   title: string
+  trackId?: string | null
   ytVideoId?: string | null
   biliBvid?: string | null
   biliPage?: number | null
@@ -67,24 +76,63 @@ const emit = defineEmits<{
 const showModal = ref(props.show)
 const isMobile = ref(false)
 const videoLoaded = ref(false)
+const proxyVideoUrl = ref('')
+const playbackMessage = ref('')
+const fallbackBiliIframeUrl = ref('')
+const videoRef = ref<HTMLVideoElement | null>(null)
 
-// 检测移动端
 if (typeof window !== 'undefined') {
   isMobile.value = window.innerWidth <= 820 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
+const localBiliIframeUrl = computed(() => {
+  if (!props.biliBvid) return ''
+  const search = new URLSearchParams({
+    bvid: props.biliBvid,
+    page: String(props.biliPage || 1),
+    autoplay: isMobile.value ? '0' : '1',
+    high_quality: '1',
+    danmaku: '0',
+    as_wide: '1',
+  })
+  return `https://player.bilibili.com/player.html?${search.toString()}`
+})
+
+const iframeUrl = computed(() => {
+  if (proxyVideoUrl.value) return ''
+  if (fallbackBiliIframeUrl.value || localBiliIframeUrl.value) return fallbackBiliIframeUrl.value || localBiliIframeUrl.value
+  return props.ytVideoId ? `https://www.youtube.com/embed/${props.ytVideoId}?autoplay=${isMobile.value ? 0 : 1}&rel=0` : ''
+})
+
 watch(
   () => props.show,
-  (val) => {
+  async (val) => {
     showModal.value = val
-    if (val) {
-      videoLoaded.value = false
-      // 3秒后假设视频已加载
-      setTimeout(() => {
-        videoLoaded.value = true
-      }, 3000)
+    if (!val) return
+    videoLoaded.value = false
+    proxyVideoUrl.value = ''
+    playbackMessage.value = ''
+    fallbackBiliIframeUrl.value = ''
+    if (props.trackId && props.biliBvid) {
+      try {
+        const playback = await api.mvPlayback(props.trackId)
+        fallbackBiliIframeUrl.value = playback.fallbackIframeUrl
+        if (playback.videoUrl) {
+          proxyVideoUrl.value = playback.videoUrl
+          playbackMessage.value = playback.quality ? `已启用高清播放，清晰度代码 ${playback.quality}` : '已启用高清播放'
+          await nextTick()
+          if (!isMobile.value) void videoRef.value?.play().catch(() => undefined)
+        } else if (playback.message && playback.message !== 'ok') {
+          playbackMessage.value = `高清解析失败，已回退 B站播放器：${playback.message}`
+        }
+      } catch {
+        playbackMessage.value = '高清解析失败，已回退 B站播放器'
+      }
     }
-  }
+    setTimeout(() => {
+      videoLoaded.value = true
+    }, 3000)
+  },
 )
 
 watch(showModal, (val) => {
@@ -92,7 +140,10 @@ watch(showModal, (val) => {
 })
 
 function stopVideo() {
-  // Modal关闭时会自动卸载iframe，停止播放
+  videoRef.value?.pause()
+  proxyVideoUrl.value = ''
+  fallbackBiliIframeUrl.value = ''
+  playbackMessage.value = ''
   videoLoaded.value = false
 }
 </script>
@@ -105,19 +156,21 @@ function stopVideo() {
 .mv-player-container {
   position: relative;
   width: 100%;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  padding-bottom: 56.25%;
   background: #000;
   border-radius: 12px;
   overflow: hidden;
 }
 
-.mv-player-iframe {
+.mv-player-iframe,
+.mv-player-video {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   border-radius: 12px;
+  background: #000;
 }
 
 .mv-player-tips {
@@ -152,11 +205,9 @@ function stopVideo() {
     margin: 8px;
   }
 
-  .mv-player-container {
-    border-radius: 8px;
-  }
-
-  .mv-player-iframe {
+  .mv-player-container,
+  .mv-player-iframe,
+  .mv-player-video {
     border-radius: 8px;
   }
 }

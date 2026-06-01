@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { assetToMusicCandidate, findReadyMusicAsset } from '../db/musicAssets.js'
+import { findMusicLyric, upsertMusicLyric } from '../db/musicLyrics.js'
 import { getTrackMusicRecord } from '../db/tracks.js'
+import type { MusicCandidate } from '../services/musicTypes.js'
 import { withMusicCache } from '../services/musicCache.js'
 import { getPlaybackCandidate, getTrackMusicCandidates } from '../services/musicProviders.js'
 import { isR2MusicCacheBlocking, maybeCacheMusicCandidate } from '../services/musicR2Cache.js'
@@ -10,6 +12,27 @@ const PLAYBACK_CACHE_TTL_MS = 10 * 60 * 1000
 
 function getTrackOrReply(trackId: string) {
   return getTrackMusicRecord(trackId)
+}
+
+function withStoredLyric(candidate: MusicCandidate, trackId: string): MusicCandidate {
+  if (candidate.lrc) {
+    upsertMusicLyric({
+      trackId,
+      source: candidate.source,
+      providerId: candidate.providerId,
+      lrc: candidate.lrc,
+    })
+    return candidate
+  }
+
+  const cachedLyric = findMusicLyric(candidate.source, candidate.providerId)
+  if (!cachedLyric?.lrc) return candidate
+
+  return {
+    ...candidate,
+    lrc: cachedLyric.lrc,
+    hasLyrics: true,
+  }
 }
 
 export async function registerTrackRoutes(app: FastifyInstance) {
@@ -50,16 +73,61 @@ export async function registerTrackRoutes(app: FastifyInstance) {
 
     if (cachedAsset) {
       const cachedCandidate = assetToMusicCandidate(cachedAsset, track)
+      let selectedCandidate = withStoredLyric(cachedCandidate, track.id)
+      let sourceOrder = track.musicSourceOrder ?? [cachedCandidate.source]
+      let candidates = [selectedCandidate]
+
+      if (!selectedCandidate.lrc) {
+        try {
+          const metadata = await withMusicCache(
+            `track:cached-playback-meta:${track.id}:${cachedCandidate.source}:${quality}`,
+            PLAYBACK_CACHE_TTL_MS,
+            () => getPlaybackCandidate(track, {
+              source: cachedCandidate.source,
+              quality,
+              jooxToken: process.env.JOOX_TOKEN,
+            }),
+          )
+          sourceOrder = metadata.sourceOrder
+          const metadataCandidate = metadata.selected ?? metadata.candidates.find((candidate) => candidate.source === cachedCandidate.source) ?? null
+
+          if (metadataCandidate) {
+            selectedCandidate = withStoredLyric({
+              ...cachedCandidate,
+              title: metadataCandidate.title || cachedCandidate.title,
+              artist: metadataCandidate.artist || cachedCandidate.artist,
+              album: metadataCandidate.album ?? cachedCandidate.album,
+              coverUrl: metadataCandidate.coverUrl ?? cachedCandidate.coverUrl,
+              durationSec: metadataCandidate.durationSec ?? cachedCandidate.durationSec,
+              lrc: metadataCandidate.lrc ?? null,
+              hasLyrics: Boolean(metadataCandidate.lrc || metadataCandidate.hasLyrics),
+              pageUrl: metadataCandidate.pageUrl ?? cachedCandidate.pageUrl,
+              selected: true,
+            }, track.id)
+            candidates = metadata.candidates.map((candidate) => (
+              candidate.source === selectedCandidate.source && candidate.providerId === selectedCandidate.providerId
+                ? selectedCandidate
+                : withStoredLyric(candidate, track.id)
+            ))
+            if (!candidates.some((candidate) => candidate.source === selectedCandidate.source && candidate.providerId === selectedCandidate.providerId)) {
+              candidates = [selectedCandidate, ...candidates]
+            }
+          }
+        } catch {
+          // Cached audio should remain playable even when live lyric metadata is unavailable.
+        }
+      }
+
       return {
         trackId: track.id,
-        sourceOrder: track.musicSourceOrder ?? [cachedCandidate.source],
-        selectedSource: cachedCandidate.source,
+        sourceOrder,
+        selectedSource: selectedCandidate.source,
         recommendedSource: 'qq',
-        selected: toPublicCandidate(cachedCandidate),
+        selected: toPublicCandidate(selectedCandidate),
         audioUrl: cachedCandidate.audioUrl,
-        lrc: null,
-        lrcAvailable: false,
-        candidates: [toPublicCandidate(cachedCandidate)],
+        lrc: selectedCandidate.lrc ?? null,
+        lrcAvailable: Boolean(selectedCandidate.lrc),
+        candidates: candidates.map(toPublicCandidate),
       }
     }
 
@@ -69,7 +137,7 @@ export async function registerTrackRoutes(app: FastifyInstance) {
       quality,
       jooxToken: process.env.JOOX_TOKEN,
     }))
-    const selected = result.selected
+    let selected = result.selected
 
     if (!selected?.audioUrl) {
       return reply.code(404).send({
@@ -78,6 +146,13 @@ export async function registerTrackRoutes(app: FastifyInstance) {
         candidates: result.candidates.map(toPublicCandidate),
       })
     }
+
+    selected = withStoredLyric(selected, track.id)
+    const responseCandidates = result.candidates.map((candidate) => (
+      candidate.source === selected.source && candidate.providerId === selected.providerId
+        ? { ...candidate, lrc: selected.lrc, hasLyrics: Boolean(selected.lrc || selected.hasLyrics), selected: true }
+        : withStoredLyric(candidate, track.id)
+    ))
 
     let playbackUrl = selected.audioUrl
     if (isR2MusicCacheBlocking()) {
@@ -96,7 +171,7 @@ export async function registerTrackRoutes(app: FastifyInstance) {
       audioUrl: playbackUrl,
       lrc: selected.lrc ?? null,
       lrcAvailable: Boolean(selected.lrc),
-      candidates: result.candidates.map(toPublicCandidate),
+      candidates: responseCandidates.map(toPublicCandidate),
     }
   })
 }
