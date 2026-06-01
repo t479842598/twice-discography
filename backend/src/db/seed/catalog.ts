@@ -213,7 +213,7 @@ export const tracks = [
     title_ja: 'TT',
     title_ko: 'TT',
     title_romanized: 'TT',
-    note_zh: '经典标题曲。',
+    note_zh: '经典主打曲。',
     note_en: 'Classic title track.',
   },
   {
@@ -233,7 +233,7 @@ export const tracks = [
     title_ja: 'What is Love?',
     title_ko: 'What is Love?',
     title_romanized: 'What is Love',
-    note_zh: '电影感概念标题曲。',
+    note_zh: '电影感概念主打曲。',
     note_en: 'Film-inspired title track.',
   },
   {
@@ -292,7 +292,7 @@ export const tracks = [
     title_ja: "I CAN'T STOP ME",
     title_ko: "I CAN'T STOP ME",
     title_romanized: "I Can't Stop Me",
-    note_zh: '复古合成器流行标题曲。',
+    note_zh: '复古合成器流行主打曲。',
     note_en: 'Retro synth-pop title track.',
   },
   {
@@ -330,7 +330,7 @@ export const tracks = [
     title_ja: 'SET ME FREE',
     title_ko: 'SET ME FREE',
     title_romanized: 'Set Me Free',
-    note_zh: 'READY TO BE 标题曲。',
+    note_zh: 'READY TO BE 主打曲。',
     note_en: 'READY TO BE title track.',
   },
   {

@@ -70,6 +70,27 @@ CREATE TABLE IF NOT EXISTS music_cache (
 
 CREATE INDEX IF NOT EXISTS idx_music_cache_expires_at ON music_cache (expires_at);
 
+CREATE TABLE IF NOT EXISTS music_assets (
+  id TEXT PRIMARY KEY,
+  track_id TEXT,
+  source TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  quality_tag TEXT NOT NULL,
+  r2_key TEXT NOT NULL,
+  public_url TEXT NOT NULL,
+  status TEXT NOT NULL,
+  etag TEXT,
+  content_type TEXT,
+  size_bytes INTEGER,
+  error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_music_assets_identity ON music_assets (source, provider_id, quality_tag);
+CREATE INDEX IF NOT EXISTS idx_music_assets_track_status ON music_assets (track_id, status);
+CREATE INDEX IF NOT EXISTS idx_music_assets_status ON music_assets (status);
+
 CREATE TABLE IF NOT EXISTS members (
   id TEXT PRIMARY KEY,
   name_zh TEXT NOT NULL,

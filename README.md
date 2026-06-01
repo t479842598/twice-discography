@@ -183,6 +183,13 @@ pnpm dev
 | `CORS_ORIGIN` | 允许访问 API 的前端域名 | 一体部署可设为站点域名；开发为 `http://localhost:5173` |
 | `STATIC_PREFIX` | 后端静态资源前缀 | `/static` |
 | `JOOX_TOKEN` | JOOX 音源 token | 可留空，留空时禁用 JOOX |
+| `MUSIC_R2_CACHE_ENABLED` | 是否启用 Cloudflare R2 音频缓存 | `false`；确认版权后可设为 `true` |
+| `MUSIC_R2_CACHE_MISS_MODE` | R2 未命中时的处理方式 | `background` 首播走上游并后台上传；`blocking` 等上传后返回 R2 |
+| `MUSIC_R2_MIN_AUDIO_BYTES` | 音频下载最小字节数校验 | `16384` |
+| `MUSIC_R2_MAX_BYTES` | R2 音频缓存总容量上限 | 默认 `9126805504`，即 8.5GB |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare R2 上传凭据 | 仅配置在后端环境变量 |
+| `R2_BUCKET` | R2 bucket 名称 | 例如 `twice-music-assets` |
+| `R2_PUBLIC_BASE_URL` | R2 公开 CDN 域名 | 例如 `https://cdn2.479842598.xyz` |
 | `VITE_API_BASE` | 前端请求 API 的基础地址 | 一体部署 `/api`；分离部署 `https://api.example.com/api` |
 | `VITE_STATIC_BASE` | 前端静态资源基础地址 | 一体部署 `/static` |
 | `VITE_PLAYER_BASE` | 播放器路径前缀 | `/player` |
@@ -194,6 +201,7 @@ pnpm dev
 - `VITE_*` 变量会在前端构建时写入产物，修改后必须重新执行 `pnpm build`。
 - 云平台若只提供 `PORT` 变量，而本项目读取 `BACKEND_PORT`，需要在平台环境变量中把 `BACKEND_PORT` 设置为平台要求的端口。
 - SQLite 文件必须放在持久化目录中，否则云平台重启或重新部署后数据可能丢失。
+- R2 音频缓存只适合缓存你有权分发的音频；配置教程见 `docs/R2_MUSIC_CACHE.md`，批量预热可运行 `pnpm music:warm-r2 -- --concurrency=2`。
 
 ## API 接口
 

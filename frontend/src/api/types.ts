@@ -146,5 +146,22 @@ export interface PlaybackResponse {
   candidates: MusicCandidate[]
 }
 
+export interface MusicSearchResponse {
+  query: string
+  sources: string[]
+  limit: number
+  results: MusicCandidate[]
+}
+
+export interface MusicResolveResponse {
+  query: string
+  source: string
+  providerId: string
+  selected: MusicCandidate
+  audioUrl: string
+  lrc: string | null
+  lrcAvailable: boolean
+}
+
 
 

@@ -8,7 +8,7 @@
     <span>
       {{ pickText(member.name, localeStore.locale) }} ·
       <CountryFlag :country-code="member.nationality" :emoji="member.flagEmoji" size="small" />
-      {{ member.positions.join(' · ') }}
+      {{ positionLabels(member.positions, localeStore.locale) }}
     </span>
   </RouterLink>
 </template>
@@ -19,7 +19,7 @@ import { RouterLink } from 'vue-router'
 import type { Member } from '@/api/types'
 import CountryFlag from '@/components/common/CountryFlag.vue'
 import { useLocaleStore } from '@/stores/locale'
-import { pickText } from '@/utils/text'
+import { pickText, positionLabels } from '@/utils/text'
 
 const props = defineProps<{ member: Member }>()
 const localeStore = useLocaleStore()

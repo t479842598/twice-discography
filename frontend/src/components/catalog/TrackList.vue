@@ -23,14 +23,14 @@
           </div>
           <p>
             <span v-if="track.albumTitle">{{ pickText(track.albumTitle, localeStore.locale) }}</span>
-            <span v-else>{{ categoryLabel(track.category) }}</span>
+            <span v-else>{{ categoryLabel(track.category, localeStore.locale) }}</span>
             <span> · {{ formatDuration(track.durationSec) }}</span>
           </p>
         </div>
         <div class="track-badge-cell">
-          <n-tag v-if="track.isTitle" size="small" type="error" :bordered="false">主打</n-tag>
+          <n-tag v-if="track.isTitle" size="small" type="error" :bordered="false">{{ t('track.titleTrack') }}</n-tag>
         </div>
-        <n-button class="track-play-button" circle size="small" secondary :aria-label="`播放 ${pickText(track.title, localeStore.locale)}`" @mouseenter="audioStore.prefetchTrack(track)" @click.stop="audioStore.playTrackFromList(track, tracks)">
+        <n-button class="track-play-button" circle size="small" secondary :aria-label="t('track.playAria', { title: pickText(track.title, localeStore.locale) })" @mouseenter="audioStore.prefetchTrack(track)" @click.stop="audioStore.playTrackFromList(track, tracks)">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
@@ -53,6 +53,7 @@ import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Track } from '@/api/types'
 import MvPlayer from '@/components/player/MvPlayer.vue'
+import { useI18n } from '@/i18n'
 import { useAudioStore } from '@/stores/audio'
 import { useLocaleStore } from '@/stores/locale'
 import { categoryLabel, formatDuration, pickText } from '@/utils/text'
@@ -61,6 +62,7 @@ const props = defineProps<{ tracks: Track[] }>()
 
 const audioStore = useAudioStore()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const showMvPlayer = ref(false)
 const currentMvTrack = ref<Track | null>(null)
 

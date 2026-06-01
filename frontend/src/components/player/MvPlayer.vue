@@ -23,23 +23,23 @@
         frameborder="0"
         allowfullscreen
       />
-      <n-empty v-else description="暂无MV链接">
+      <n-empty v-else :description="t('mv.noLink')">
         <template #extra>
-          <n-button size="small" @click="showModal = false">关闭</n-button>
+          <n-button size="small" @click="showModal = false">{{ t('mv.close') }}</n-button>
         </template>
       </n-empty>
     </div>
     <div v-if="ytVideoId || biliBvid" class="mv-player-tips">
       <p v-if="isMobile && !videoLoaded">
         <n-icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></n-icon>
-        如果视频无法加载，请尝试：
+        {{ t('mv.loadTip') }}
       </p>
       <div v-if="isMobile" class="mv-player-actions">
         <n-button v-if="ytVideoId" text tag="a" :href="`https://www.youtube.com/watch?v=${ytVideoId}`" target="_blank" rel="noopener noreferrer">
-          在 YouTube 打开 →
+          {{ t('mv.openYoutube') }}
         </n-button>
         <n-button v-if="biliBvid" text tag="a" :href="`https://www.bilibili.com/video/${biliBvid}`" target="_blank" rel="noopener noreferrer">
-          在 B站 打开 →
+          {{ t('mv.openBilibili') }}
         </n-button>
       </div>
     </div>
@@ -48,6 +48,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

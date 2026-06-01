@@ -5,9 +5,9 @@
       <span>{{ album.year }}</span>
     </div>
     <div class="album-copy">
-      <n-tag size="small" :bordered="false">{{ albumTypeLabel(album.type) }}</n-tag>
+      <n-tag size="small" :bordered="false">{{ albumTypeLabel(album.type, localeStore.locale) }}</n-tag>
       <h3>{{ pickText(album.title, localeStore.locale) }}</h3>
-      <p>{{ album.releaseDate }} · {{ album.trackCount }} 首歌</p>
+      <p>{{ album.releaseDate }} · {{ t('album.trackCount', { count: album.trackCount }) }}</p>
     </div>
   </RouterLink>
 </template>
@@ -16,11 +16,13 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Album } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
 import { albumTypeLabel, pickText } from '@/utils/text'
 
 const props = defineProps<{ album: Album }>()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const gradient = computed(() => {
   const hue = Math.abs([...props.album.id].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 40
   return `linear-gradient(135deg, hsl(${330 + hue} 85% 75%), hsl(${280 + hue} 75% 85%), hsl(${320 + hue} 80% 90%))`

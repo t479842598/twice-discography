@@ -15,27 +15,27 @@
       <div v-else class="member-detail-photo member-detail-photo-fallback">{{ pickText(member.name, localeStore.locale).slice(0, 2).toUpperCase() }}</div>
       <div class="member-detail-main">
         <section class="panel member-resume">
-          <h2>成员简历</h2>
-          <p><strong>艺名</strong><span>{{ pickText(member.name, localeStore.locale) }}</span></p>
-          <p><strong>本名</strong><span>{{ pickText(member.realName, localeStore.locale) }}</span></p>
+          <h2>{{ t('member.resume') }}</h2>
+          <p><strong>{{ t('member.stageName') }}</strong><span>{{ pickText(member.name, localeStore.locale) }}</span></p>
+          <p><strong>{{ t('member.realName') }}</strong><span>{{ pickText(member.realName, localeStore.locale) }}</span></p>
           <p>
-            <strong>国籍</strong>
+            <strong>{{ t('member.nationality') }}</strong>
             <span class="member-flag-wrapper">
               <CountryFlag :country-code="member.nationality" :emoji="member.flagEmoji" size="medium" />
             </span>
           </p>
-          <p><strong>生日</strong><span>{{ member.birthday }}</span></p>
-          <p><strong>出道</strong><span>{{ member.debutDate || '2015-10-20' }}</span></p>
-          <p><strong>身高</strong><span>{{ member.heightCm ? `${member.heightCm} cm` : '—' }}</span></p>
-          <p><strong>血型</strong><span>{{ member.bloodType || '—' }}</span></p>
+          <p><strong>{{ t('member.birthday') }}</strong><span>{{ member.birthday }}</span></p>
+          <p><strong>{{ t('member.debut') }}</strong><span>{{ member.debutDate || '2015-10-20' }}</span></p>
+          <p><strong>{{ t('member.height') }}</strong><span>{{ member.heightCm ? `${member.heightCm} cm` : '—' }}</span></p>
+          <p><strong>{{ t('member.bloodType') }}</strong><span>{{ member.bloodType || '—' }}</span></p>
           <p><strong>MBTI</strong><span>{{ member.mbti || '—' }}</span></p>
-          <p><strong>星座</strong><span>{{ zodiacLabel(member.zodiac, localeStore.locale) }}</span></p>
-          <p><strong>定位</strong><span>{{ member.positions.join(' · ') }}</span></p>
+          <p><strong>{{ t('member.zodiac') }}</strong><span>{{ zodiacLabel(member.zodiac, localeStore.locale) }}</span></p>
+          <p><strong>{{ t('member.position') }}</strong><span>{{ positionLabels(member.positions, localeStore.locale) }}</span></p>
         </section>
         <section class="section">
-          <h2>关联曲目</h2>
-          <TrackList :tracks="member.tracks || []" />
-          <n-empty v-if="!member.tracks?.length" description="暂无关联 单人 / 小分队 曲目" />
+          <h2>{{ t('member.relatedTracks') }}</h2>
+          <TrackList :tracks="sortedMemberTracks" />
+          <n-empty v-if="!sortedMemberTracks.length" :description="t('member.noRelatedTracks')" />
         </section>
       </div>
     </section>
@@ -43,20 +43,26 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { Member } from '@/api/types'
 import CountryFlag from '@/components/common/CountryFlag.vue'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
-import { pickText, zodiacLabel } from '@/utils/text'
+import { pickText, positionLabels, zodiacLabel } from '@/utils/text'
 
 const route = useRoute()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const member = ref<Member | null>(null)
 const photoFailed = ref(false)
+const sortedMemberTracks = computed(() => {
+  const tracks = member.value?.tracks || []
+  return [...tracks].sort((currentTrack, nextTrack) => Number(nextTrack.isTitle) - Number(currentTrack.isTitle))
+})
 
 async function load() {
   photoFailed.value = false

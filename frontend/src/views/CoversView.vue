@@ -1,17 +1,17 @@
 <template>
   <main class="page">
-    <PageHeader eyebrow="翻唱" title="翻唱 / 预出道" description="舞台翻唱、特别表演和预出道资料，支持直接播放。" />
+    <PageHeader :eyebrow="t('page.covers.eyebrow')" :title="t('page.covers.title')" :description="t('page.covers.description')" />
     <section class="section">
-      <h2>可播放曲目</h2>
+      <h2>{{ t('page.covers.playable') }}</h2>
       <TrackList :tracks="coverTracks" />
     </section>
     <section class="section">
-      <h2>翻唱资料</h2>
+      <h2>{{ t('page.covers.archive') }}</h2>
       <div class="list-grid">
         <n-card v-for="cover in covers" :key="cover.id" :title="cover.originalSong" :class="{ 'is-highlighted': highlightedId === cover.id }">
           <n-space>
             <n-tag size="small" :bordered="false">{{ cover.year }}</n-tag>
-            <n-tag v-if="cover.isPredebut" size="small" type="warning">预出道</n-tag>
+            <n-tag v-if="cover.isPredebut" size="small" type="warning">{{ t('category.predebut') }}</n-tag>
           </n-space>
           <p>{{ cover.originalArtist }} · {{ cover.performedAt }}</p>
           <p>{{ pickText(cover.note, localeStore.locale) }}</p>
@@ -28,10 +28,12 @@ import { api } from '@/api/client'
 import type { Cover, Track } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
 
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const route = useRoute()
 const covers = ref<Cover[]>([])
 const coverTracks = ref<Track[]>([])

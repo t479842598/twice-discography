@@ -258,14 +258,42 @@ export function listCovers() {
 }
 
 const featuredAlbumIds = [
-  'apple-twice-1840284138',
-  'apple-twice-1813490993',
-  'apple-twice-1828648304',
-  'strategy',
-  'ready-to-be',
-  'formula-of-love',
-  'eyes-wide-open',
-  'fancy-you',
+  'apple-twice-1555389971',
+  'apple-twice-1555401119',
+  'apple-twice-1555405141',
+  'apple-twice-1555390082',
+  'apple-twice-1555401452',
+  'apple-twice-1555395987',
+  'apple-twice-1555390183',
+  'apple-twice-1556087002',
+  'apple-twice-1515404856',
+  'apple-twice-1535654236',
+  'apple-twice-1566636556',
+  'apple-twice-1591509653',
+  'apple-twice-1635656322',
+  'apple-twice-1669081578',
+  'apple-twice-1726087580',
+  'apple-twice-1774299753',
+  'apple-twice-1807106199',
+]
+
+const featuredTrackIds = [
+  'apple-twice-1555389973',
+  'apple-twice-1555401122',
+  'apple-twice-1555405145',
+  'apple-twice-1555390083',
+  'apple-twice-1555401454',
+  'apple-twice-1555395988',
+  'apple-twice-1555390187',
+  'apple-twice-1556087008',
+  'apple-twice-1544547947',
+  'apple-twice-1566636563',
+  'apple-twice-1584128934',
+  'apple-twice-1635656417',
+  'apple-twice-1556087221',
+  'apple-twice-1535654254',
+  'apple-twice-1591509657',
+  'apple-twice-1635656431',
 ]
 
 function isGroupAlbum(album: ReturnType<typeof mapAlbum>) {
@@ -279,7 +307,16 @@ function featuredAlbums(albums: ReturnType<typeof mapAlbum>[]) {
     .filter((album): album is ReturnType<typeof mapAlbum> => Boolean(album))
   const latestGroupAlbums = albums.filter((album) => isGroupAlbum(album) && !picked.some((item) => item.id === album.id))
 
-  return [...picked, ...latestGroupAlbums].slice(0, 8)
+  return [...picked, ...latestGroupAlbums].slice(0, 16)
+}
+
+function featuredTracks(tracks: ReturnType<typeof mapTrack>[]) {
+  const picked = featuredTrackIds
+    .map((id) => tracks.find((track) => track.id === id))
+    .filter((track): track is ReturnType<typeof mapTrack> => Boolean(track))
+  const fallbackTracks = tracks.filter((track) => track.isTitle && !picked.some((item) => item.id === track.id))
+
+  return [...picked, ...fallbackTracks].slice(0, 16)
 }
 
 export function getOverview() {
@@ -313,7 +350,7 @@ export function getOverview() {
       covers: covers.filter((cover) => Number(cover.year) === year),
     })),
     featuredAlbums: featuredAlbums(albums),
-    featuredTracks: tracks.filter((track) => track.isTitle).slice(0, 8),
+    featuredTracks: featuredTracks(tracks),
     categories: [
       { key: 'group', label: '团体歌曲', count: tracks.filter((track) => track.category === 'group').length },
       { key: 'solo', label: 'Solo', count: tracks.filter((track) => track.category === 'solo').length },

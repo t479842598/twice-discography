@@ -3,8 +3,8 @@
     v-if="audioStore.currentTrack && isMinimized"
     class="mini-audio-bubble"
     type="button"
-    title="展开播放器"
-    aria-label="展开播放器"
+    :title="t('player.expand')"
+    :aria-label="t('player.expand')"
     @click="isMinimized = false"
   >
     <img
@@ -30,7 +30,7 @@
       />
       <div>
         <strong>{{ pickText(audioStore.currentTrack.title, localeStore.locale) }}</strong>
-        <span>{{ audioStore.selected?.sourceName || '准备播放' }} · {{ audioStore.selected?.quality.label || '解析中' }}</span>
+        <span>{{ audioStore.selected?.sourceName || t('player.ready') }} · {{ audioStore.selected?.quality.label || t('player.resolving') }}</span>
       </div>
     </div>
 
@@ -48,7 +48,7 @@
             <path d="M721.493333 212.992l0.213334-63.786667a21.418667 21.418667 0 0 1 12.16-19.328 21.077333 21.077333 0 0 1 22.613333 2.901334l174.549333 127.829333a21.333333 21.333333 0 0 1-13.610666 37.717333H85.333333v-85.333333h636.16zM85.333333 810.453333l853.333334-0.213333v85.333333l-853.333334 0.256v-85.333333z m0-298.709333h853.077334v85.333333H85.333333v-85.333333z" />
           </svg>
         </n-button>
-        <n-button quaternary circle size="large" :disabled="!canPlayPrevious" title="上一首" aria-label="上一首" @click="audioStore.playPreviousInQueue()">
+        <n-button quaternary circle size="large" :disabled="!canPlayPrevious" :title="t('player.previous')" :aria-label="t('player.previous')" @click="audioStore.playPreviousInQueue()">
           <svg class="mini-audio-icon mini-audio-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
             <path d="M364.302083 465.602819L687.954365 218.588294c38.416414-29.327534 93.791393-1.929039 93.791392 46.396277v494.029051c0 48.325316-55.374979 75.725617-93.791392 46.398084L364.302083 558.397181c-30.600916-23.357989-30.600916-69.436372 0-92.794362zM238.945254 780.798397V451.684117v-164.562559c0-19.628152-5.904521-60.475733 17.057907-75.841215 25.523642-17.068744 59.747828 1.210165 59.747828 31.919454v493.676839c0 19.628152 5.915358 60.473927-17.047069 75.841215-25.53448 17.068744-59.758666-1.211971-59.758666-31.919454z" />
           </svg>
@@ -75,13 +75,13 @@
             <path d="M8 5v14l11-7-11-7Z" />
           </svg>
         </n-button>
-        <n-button quaternary circle size="large" :disabled="!canPlayNext" title="下一首" aria-label="下一首" @click="audioStore.playNextInQueue()">
+        <n-button quaternary circle size="large" :disabled="!canPlayNext" :title="t('player.next')" :aria-label="t('player.next')" @click="audioStore.playNextInQueue()">
           <svg class="mini-audio-icon mini-audio-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
             <path d="M655.706179 465.602819L332.053897 218.588294c-38.414608-29.327534-93.791393-1.929039-93.791392 46.396277v494.029051c0 48.325316 55.376785 75.725617 93.791392 46.398084l323.652282-247.014525c30.602722-23.357989 30.602722-69.436372 0-92.794362zM781.064814 780.798397V451.684117v-164.562559c0-19.628152 5.904521-60.475733-17.057907-75.841215-25.523642-17.068744-59.747828 1.210165-59.747828 31.919454v493.676839c0 19.628152-5.915358 60.473927 17.047069 75.841215 25.532673 17.068744 59.758666-1.211971 59.758666-31.919454z" />
           </svg>
         </n-button>
         <n-badge v-if="isMobile" :value="displayQueue.length" :max="99" :show="displayQueue.length > 1">
-          <n-button quaternary circle size="large" title="播放列表" aria-label="播放列表" @click="showQueueDrawer = true">
+          <n-button quaternary circle size="large" :title="t('player.queue')" :aria-label="t('player.queue')" @click="showQueueDrawer = true">
             <svg class="mini-audio-icon mini-audio-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
               <path d="M512 874.666667a21.333333 21.333333 0 0 1-21.333333 21.333333H64a21.333333 21.333333 0 0 1 0-42.666667h426.666667a21.333333 21.333333 0 0 1 21.333333 21.333334zM64 128h896a21.333333 21.333333 0 0 0 0-42.666667H64a21.333333 21.333333 0 0 0 0 42.666667z m896 341.333333H64a21.333333 21.333333 0 0 0 0 42.666667h896a21.333333 21.333333 0 0 0 0-42.666667z m-100.573333 128A121.866667 121.866667 0 0 0 768 638.586667 121.866667 121.866667 0 0 0 676.573333 597.333333C609.333333 597.333333 554.666667 652 554.666667 719.24c0 29.046667 2.38 56.293333 31.64 95.653333 26.786667 36 75.426667 82.78 167.88 161.333334a21.333333 21.333333 0 0 0 27.626666 0c92.453333-78.58 141.093333-125.333333 167.88-161.333334 29.26-39.333333 31.64-66.606667 31.64-95.653333C981.333333 652 926.666667 597.333333 859.426667 597.333333z" />
             </svg>
@@ -90,7 +90,7 @@
         <n-popover v-else trigger="click" placement="top" :width="380">
           <template #trigger>
             <n-badge :value="displayQueue.length" :max="99" :show="displayQueue.length > 1">
-              <n-button quaternary circle size="large" title="播放列表" aria-label="播放列表">
+              <n-button quaternary circle size="large" :title="t('player.queue')" :aria-label="t('player.queue')">
                 <svg class="mini-audio-icon mini-audio-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
                   <path d="M512 874.666667a21.333333 21.333333 0 0 1-21.333333 21.333333H64a21.333333 21.333333 0 0 1 0-42.666667h426.666667a21.333333 21.333333 0 0 1 21.333333 21.333334zM64 128h896a21.333333 21.333333 0 0 0 0-42.666667H64a21.333333 21.333333 0 0 0 0 42.666667z m896 341.333333H64a21.333333 21.333333 0 0 0 0 42.666667h896a21.333333 21.333333 0 0 0 0-42.666667z m-100.573333 128A121.866667 121.866667 0 0 0 768 638.586667 121.866667 121.866667 0 0 0 676.573333 597.333333C609.333333 597.333333 554.666667 652 554.666667 719.24c0 29.046667 2.38 56.293333 31.64 95.653333 26.786667 36 75.426667 82.78 167.88 161.333334a21.333333 21.333333 0 0 0 27.626666 0c92.453333-78.58 141.093333-125.333333 167.88-161.333334 29.26-39.333333 31.64-66.606667 31.64-95.653333C981.333333 652 926.666667 597.333333 859.426667 597.333333z" />
                 </svg>
@@ -99,7 +99,7 @@
           </template>
           <div class="mini-queue-popover">
             <div class="mini-queue-head">
-              <strong>当前歌单</strong>
+              <strong>{{ t('player.queueTitle') }}</strong>
               <span>{{ queuePosition }} / {{ displayQueue.length || 1 }} · {{ playModeLabel }}</span>
             </div>
             <n-scrollbar style="max-height: 360px">
@@ -127,8 +127,8 @@
           circle
           size="large"
           class="mini-audio-minimize-inline"
-          title="缩小播放器"
-          aria-label="缩小播放器"
+          :title="t('player.minimize')"
+          :aria-label="t('player.minimize')"
           @click="minimizePlayer"
         >
           <svg class="mini-audio-icon mini-audio-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
@@ -146,7 +146,7 @@
 
     <div class="mini-audio-lyric">
       <LyricsDisplay v-if="audioStore.lrc" :lrc="audioStore.lrc" :current-time="currentTime" />
-      <span v-else>暂无歌词</span>
+      <span v-else>{{ t('player.noLyrics') }}</span>
     </div>
 
     <audio
@@ -161,13 +161,13 @@
       @loadedmetadata="updateDuration"
       @durationchange="updateDuration"
     />
-    <button v-if="isMobile" class="mini-audio-minimize" type="button" @click="minimizePlayer" title="缩小播放器" aria-label="缩小播放器">
+    <button v-if="isMobile" class="mini-audio-minimize" type="button" @click="minimizePlayer" :title="t('player.minimize')" :aria-label="t('player.minimize')">
       <svg class="mini-audio-action-icon mini-audio-action-icon-filled" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
         <path d="M853.333333 0h-682.666666C75.093333 0 0 75.093333 0 170.666667v682.666666C0 948.906667 75.093333 1024 170.666667 1024h682.666666c95.573333 0 170.666667-75.093333 170.666667-170.666667v-682.666666C1024 75.093333 948.906667 0 853.333333 0zM955.733333 853.333333c0 54.613333-47.786667 102.4-102.4 102.4h-682.666666c-54.613333 0-102.4-47.786667-102.4-102.4v-682.666666C68.266667 116.053333 116.053333 68.266667 170.666667 68.266667h682.666666c54.613333 0 102.4 47.786667 102.4 102.4v682.666666z" />
         <path d="M812.373333 163.84L614.4 361.813333V238.933333c0-20.48-13.653333-34.133333-34.133333-34.133333s-34.133333 13.653333-34.133334 34.133333v204.8c0 20.48 13.653333 34.133333 34.133334 34.133334h204.8c20.48 0 34.133333-13.653333 34.133333-34.133334s-13.653333-34.133333-34.133333-34.133333H662.186667l197.973333-197.973333c13.653333-13.653333 13.653333-34.133333 0-47.786667-13.653333-13.653333-34.133333-13.653333-47.786667 0zM443.733333 546.133333h-204.8c-20.48 0-34.133333 13.653333-34.133333 34.133334s13.653333 34.133333 34.133333 34.133333h122.88l-197.973333 197.973333c-13.653333 13.653333-13.653333 34.133333 0 47.786667 13.653333 13.653333 34.133333 13.653333 47.786667 0L409.6 662.186667v122.88c0 20.48 13.653333 34.133333 34.133333 34.133333s34.133333-13.653333 34.133334-34.133333v-204.8c0-20.48-13.653333-34.133333-34.133334-34.133334z" />
       </svg>
     </button>
-    <button class="mini-audio-close" type="button" @click="closePlayer" title="关闭播放器">
+    <button class="mini-audio-close" type="button" @click="closePlayer" :title="t('player.close')" :aria-label="t('player.close')">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -179,7 +179,7 @@
     <n-drawer-content closable>
       <template #header>
         <div class="mini-queue-head">
-          <strong>当前歌单</strong>
+          <strong>{{ t('player.queueTitle') }}</strong>
           <span>{{ queuePosition }} / {{ displayQueue.length || 1 }} · {{ playModeLabel }}</span>
         </div>
       </template>
@@ -206,6 +206,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
+import { useI18n } from '@/i18n'
 import { useAudioStore } from '@/stores/audio'
 import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
@@ -213,6 +214,7 @@ import LyricsDisplay from './LyricsDisplay.vue'
 
 const audioStore = useAudioStore()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const audioRef = ref<HTMLAudioElement | null>(null)
 const isMobile = ref(false)
 const showQueueDrawer = ref(false)
@@ -225,11 +227,11 @@ const queuePosition = computed(() => Math.min(displayQueueIndex.value + 1, displ
 const canPlayPrevious = computed(() => audioStore.queue.length > 1 && (audioStore.playMode !== 'sequence' || audioStore.queueIndex > 0))
 const canPlayNext = computed(() => audioStore.queue.length > 1 && (audioStore.playMode !== 'sequence' || audioStore.queueIndex < audioStore.queue.length - 1))
 const playModeLabel = computed(() => {
-  if (audioStore.playMode === 'shuffle') return '随机播放'
-  if (audioStore.playMode === 'repeat') return '列表循环'
-  return '顺序播放'
+  if (audioStore.playMode === 'shuffle') return t('player.shuffle')
+  if (audioStore.playMode === 'repeat') return t('player.repeat')
+  return t('player.sequence')
 })
-const playButtonLabel = computed(() => (audioStore.loading ? '加载中' : audioStore.playing ? '暂停' : '播放'))
+const playButtonLabel = computed(() => (audioStore.loading ? t('player.loading') : audioStore.playing ? t('player.pause') : t('player.play')))
 const isCoverSpinning = computed(() => audioStore.playing && !audioStore.loading)
 const progressMax = computed(() => Math.max(duration.value, 1))
 const progressValue = computed({

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '@/api/client'
 import type { LocaleCode } from '@/api/types'
+import { isLocaleCode, localeLabels, setDocumentLocale } from '@/i18n/messages'
 
 const localeMap: Record<string, LocaleCode> = {
   CN: 'zh-CN',
@@ -17,17 +18,17 @@ export const useLocaleStore = defineStore('locale', () => {
   const country = ref('UNKNOWN')
   const initialized = ref(false)
 
-  const label = computed(() => ({
-    'zh-CN': '中文',
-    'en-US': 'English',
-    'ja-JP': '日本語',
-    'ko-KR': '한국어',
-  }[locale.value]))
+  const label = computed(() => localeLabels[locale.value])
+
+  function applyLocale(next: LocaleCode) {
+    locale.value = next
+    setDocumentLocale(next)
+  }
 
   async function init() {
-    const override = localStorage.getItem('locale-override') as LocaleCode | null
-    if (override) {
-      locale.value = override
+    const override = typeof localStorage === 'undefined' ? null : localStorage.getItem('locale-override')
+    if (isLocaleCode(override)) {
+      applyLocale(override)
       initialized.value = true
       return
     }
@@ -35,17 +36,19 @@ export const useLocaleStore = defineStore('locale', () => {
     try {
       const hint = await api.regionHint()
       country.value = hint.country
-      locale.value = localeMap[hint.country] || 'zh-CN'
+      applyLocale(localeMap[hint.country] || 'zh-CN')
     } catch {
-      locale.value = 'zh-CN'
+      applyLocale('zh-CN')
     } finally {
       initialized.value = true
     }
   }
 
   function switchLocale(next: LocaleCode) {
-    locale.value = next
-    localStorage.setItem('locale-override', next)
+    applyLocale(next)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('locale-override', next)
+    }
   }
 
   return { locale, country, initialized, label, init, switchLocale }

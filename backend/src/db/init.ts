@@ -20,6 +20,7 @@ const catalogTracks = [
   ...tracks,
   ...appleTracks.filter((track) => !track.album_id || catalogAlbumIds.has(track.album_id)),
 ]
+type CatalogSeedTrack = (typeof catalogTracks)[number]
 
 const titleTrackByAlbum: Record<string, string> = {
   thestorybegins: 'likeoohahh',
@@ -73,6 +74,53 @@ function titleFlag(track: { is_title?: number; title_en: string; album_id?: stri
   if (mapped) return trackKey === mapped ? 1 : 0
   if (albumKey && trackKey === albumKey) return 1
   return track.track_no === 1 ? 1 : 0
+}
+
+const memberAliases: Record<string, string[]> = {
+  NAYEON: ['nayeon'],
+  JEONGYEON: ['jeongyeon'],
+  MOMO: ['momo'],
+  SANA: ['sana'],
+  JIHYO: ['jihyo'],
+  MINA: ['mina'],
+  DAHYUN: ['dahyun'],
+  CHAEYOUNG: ['chaeyoung'],
+  TZUYU: ['tzuyu'],
+  MISAMO: ['momo', 'sana', 'mina'],
+}
+
+function uniqueMemberIds(memberIds: string[]) {
+  return Array.from(new Set(memberIds))
+}
+
+function inferMemberIdsFromTitle(title: string) {
+  const parentheticalParts = Array.from(title.matchAll(/\(([^)]+)\)/g), (match) => match[1].toUpperCase())
+  const matchedIds = parentheticalParts.flatMap((part) =>
+    Object.entries(memberAliases).flatMap(([alias, memberIds]) => {
+      const pattern = new RegExp(`(^|[^A-Z])${alias}([^A-Z]|$)`)
+      return pattern.test(part) ? memberIds : []
+    }),
+  )
+
+  return uniqueMemberIds(matchedIds)
+}
+
+function categoryForMemberCredit(track: CatalogSeedTrack, inferredMemberIds: string[]) {
+  if (inferredMemberIds.length === 0) return track.category
+  if (inferredMemberIds.length === 1) return 'solo'
+  if (track.category === 'misamo' && inferredMemberIds.join(',') === 'momo,sana,mina') return 'misamo'
+  return 'unit'
+}
+
+function withInferredMemberCredits(track: CatalogSeedTrack) {
+  const inferredMemberIds = inferMemberIdsFromTitle(track.title_en)
+  if (inferredMemberIds.length === 0) return track
+
+  return {
+    ...track,
+    category: categoryForMemberCredit(track, inferredMemberIds),
+    member_ids_json: JSON.stringify(inferredMemberIds),
+  }
 }
 
 const memberFacts: Record<string, { height_cm: number; blood_type: string; mbti: string; zodiac: string; bio_zh: string; bio_en: string; bio_ja: string; bio_ko: string }> = {
@@ -242,6 +290,7 @@ export function initializeDatabase() {
     `)
 
     for (const track of catalogTracks) {
+      const normalizedTrack = withInferredMemberCredits(track)
       insertTrack.run({
         album_id: null,
         track_no: null,
@@ -272,8 +321,8 @@ export function initializeDatabase() {
         note_en: null,
         note_ja: null,
         note_ko: null,
-        ...Object.fromEntries(Object.entries(track).map(([key, value]) => [key, nullable(value)])),
-        is_title: titleFlag(track),
+        ...Object.fromEntries(Object.entries(normalizedTrack).map(([key, value]) => [key, nullable(value)])),
+        is_title: titleFlag(normalizedTrack),
       })
     }
 

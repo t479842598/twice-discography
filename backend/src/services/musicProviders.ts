@@ -92,6 +92,13 @@ function toHttpsUrl(value: unknown) {
   return url.replace(/^http:/i, 'https:')
 }
 
+function pickAudioUrlFromText(value: unknown) {
+  const text = stringValue(value).trim()
+  const match = text.match(/https?:\/\/[^\s"'<>]+/i)
+
+  return toHttpsUrl(match?.[0] ?? '')
+}
+
 function pickQueryParam(rawUrl: unknown, key: string) {
   const value = stringValue(rawUrl)
   if (!value) return ''
@@ -348,9 +355,16 @@ export async function resolveNeteaseCandidate(track: TrackMusicRecord, options?:
 
   if (!songId) return null
 
-  const audioUrl = `https://api.qijieya.cn/meting/?server=netease&type=url&id=${encodeURIComponent(songId)}`
+  const audioApiUrl = `https://api.qijieya.cn/meting/?server=netease&type=url&id=${encodeURIComponent(songId)}`
   const lrcUrl = `https://api.qijieya.cn/meting/?server=netease&type=lrc&id=${encodeURIComponent(songId)}`
+  let audioUrl: string | null = audioApiUrl
   let lrc: string | null = null
+
+  try {
+    audioUrl = pickAudioUrlFromText(await requestText(audioApiUrl, options)) ?? audioApiUrl
+  } catch {
+    audioUrl = audioApiUrl
+  }
 
   try {
     lrc = await requestText(lrcUrl, options)
@@ -591,5 +605,42 @@ export async function getPlaybackCandidate(
       ...candidate,
       selected: Boolean(selected && candidate.source === selected.source && candidate.providerId === selected.providerId),
     })),
+  }
+}
+
+export async function resolveMusicSearchCandidate(
+  query: string,
+  source: MusicSource,
+  providerId: string,
+  options?: MusicProviderOptions,
+) {
+  const track: TrackMusicRecord = {
+    id: `${source}:${providerId}`,
+    titleZh: query,
+    titleEn: query,
+    musicSquareQuery: query,
+    musicSquarePreferred: source,
+    musicSourceOrder: [source],
+    qqSongMid: source === 'qq' ? providerId : null,
+    neteaseSongId: source === 'netease' ? providerId : null,
+    kuwoRid: source === 'kuwo' ? providerId : null,
+    jooxSongMid: source === 'joox' ? providerId : null,
+    jooxSongId: source === 'joox' ? providerId : null,
+  }
+  const resolverMap: Record<MusicSource, (track: TrackMusicRecord, options?: MusicProviderOptions) => Promise<MusicCandidate | null>> = {
+    qq: resolveQQCandidate,
+    netease: resolveNeteaseCandidate,
+    kuwo: resolveKuwoCandidate,
+    joox: resolveJooxCandidate,
+  }
+  const candidate = await resolverMap[source](track, options)
+  if (!candidate) return null
+
+  const verified = await verifyCandidate(candidate, options)
+
+  return {
+    ...verified,
+    recommended: source === 'qq',
+    selected: true,
   }
 }

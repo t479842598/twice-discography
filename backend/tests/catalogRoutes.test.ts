@@ -43,6 +43,38 @@ describe('catalog routes', () => {
     expect(body.album.tracks.some((track: { id: string }) => track.id === 'fancy')).toBe(true)
   })
 
+  it('infers member credits for solo and unit album tracks', async () => {
+    const app = buildServer()
+    const [nayeonResponse, tenTrackResponse, unitTrackResponse, misamoSoloResponse] = await Promise.all([
+      app.inject({ method: 'GET', url: '/api/members/nayeon' }),
+      app.inject({ method: 'GET', url: '/api/tracks/apple-twice-1840284144' }),
+      app.inject({ method: 'GET', url: '/api/tracks/apple-twice-1813491330' }),
+      app.inject({ method: 'GET', url: '/api/tracks/apple-misamo-1772137192' }),
+    ])
+    await app.close()
+
+    expect(nayeonResponse.statusCode).toBe(200)
+    expect(tenTrackResponse.statusCode).toBe(200)
+    expect(unitTrackResponse.statusCode).toBe(200)
+    expect(misamoSoloResponse.statusCode).toBe(200)
+
+    const nayeonBody = nayeonResponse.json()
+    expect(nayeonBody.member.tracks.some((track: { id: string }) => track.id === 'apple-twice-1840284144')).toBe(true)
+    expect(nayeonBody.member.tracks.some((track: { id: string }) => track.id === 'apple-twice-1813491330')).toBe(true)
+
+    const tenTrack = tenTrackResponse.json().track
+    expect(tenTrack.category).toBe('solo')
+    expect(tenTrack.memberIds).toEqual(['nayeon'])
+
+    const unitTrack = unitTrackResponse.json().track
+    expect(unitTrack.category).toBe('unit')
+    expect(unitTrack.memberIds).toEqual(['nayeon', 'jeongyeon', 'momo', 'mina'])
+
+    const misamoSoloTrack = misamoSoloResponse.json().track
+    expect(misamoSoloTrack.category).toBe('solo')
+    expect(misamoSoloTrack.memberIds).toEqual(['mina'])
+  })
+
   it('searches tracks and members', async () => {
     const app = buildServer()
     const response = await app.inject({ method: 'GET', url: '/api/search?q=FANCY' })

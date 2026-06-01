@@ -2,7 +2,7 @@
   <main class="page">
     <PageHeader
       v-if="album"
-      :eyebrow="`${album.year} · ${album.type}`"
+      :eyebrow="`${album.year} · ${albumTypeLabel(album.type, localeStore.locale)}`"
       :title="pickText(album.title, localeStore.locale)"
       :description="pickText(album.description, localeStore.locale)"
     />
@@ -18,7 +18,7 @@
         fetchpriority="high"
       />
       <div>
-        <h2>曲目</h2>
+        <h2>{{ t('album.tracks') }}</h2>
         <TrackList :tracks="album.tracks || []" />
       </div>
     </section>
@@ -32,11 +32,13 @@ import { api } from '@/api/client'
 import type { Album } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
-import { pickText } from '@/utils/text'
+import { albumTypeLabel, pickText } from '@/utils/text'
 
 const route = useRoute()
 const localeStore = useLocaleStore()
+const { t } = useI18n()
 const album = ref<Album | null>(null)
 
 async function load() {

@@ -1,4 +1,5 @@
 import type { LocaleCode, MultiLangText } from '@/api/types'
+import { translate, type MessageKey } from '@/i18n/messages'
 
 export function pickText(value: MultiLangText | null | undefined, locale: LocaleCode) {
   if (!value) return ''
@@ -15,18 +16,18 @@ export function formatDuration(seconds?: number | null) {
   return `${minutes}:${remain}`
 }
 
-export function categoryLabel(category: string) {
-  const labels: Record<string, string> = {
-    group: '团体',
-    solo: '单人',
-    unit: '小分队',
-    misamo: '小分队',
-    cf: '广告歌曲',
-    cover: '翻唱',
-    predebut: '预出道',
+export function categoryLabel(category: string, locale: LocaleCode) {
+  const labels: Record<string, MessageKey> = {
+    group: 'category.group',
+    solo: 'category.solo',
+    unit: 'category.unit',
+    misamo: 'category.misamo',
+    cf: 'category.cf',
+    cover: 'category.cover',
+    predebut: 'category.predebut',
   }
 
-  return labels[category] || category
+  return labels[category] ? translate(locale, labels[category]) : category
 }
 
 export function zodiacLabel(zodiac: string | null | undefined, locale: LocaleCode) {
@@ -49,13 +50,33 @@ export function zodiacLabel(zodiac: string | null | undefined, locale: LocaleCod
   return labels[zodiac]?.[locale] || zodiac
 }
 
-export function albumTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    album: '专辑',
-    mini: '迷你专辑',
-    single: '单曲',
-    unit: '小分队',
+export function albumTypeLabel(type: string, locale: LocaleCode) {
+  const labels: Record<string, MessageKey> = {
+    album: 'album.type.album',
+    mini: 'album.type.mini',
+    single: 'album.type.single',
+    unit: 'album.type.unit',
   }
 
-  return labels[type] || type
+  return labels[type] ? translate(locale, labels[type]) : type
+}
+
+export function positionLabel(position: string, locale: LocaleCode) {
+  const labels: Record<string, MessageKey> = {
+    '队长': 'position.leader',
+    '主唱': 'position.mainVocal',
+    '副唱': 'position.subVocal',
+    '主舞': 'position.mainDancer',
+    '领舞': 'position.leadDancer',
+    '门面': 'position.visual',
+    '领Rapper': 'position.leadRapper',
+    '主Rapper': 'position.mainRapper',
+    '忙内': 'position.maknae',
+  }
+
+  return labels[position] ? translate(locale, labels[position]) : position
+}
+
+export function positionLabels(positions: string[], locale: LocaleCode) {
+  return positions.map((position) => positionLabel(position, locale)).join(' · ')
 }

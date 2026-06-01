@@ -5,6 +5,8 @@ import type {
   Cover,
   Member,
   MusicCandidate,
+  MusicResolveResponse,
+  MusicSearchResponse,
   PlaybackResponse,
   Track,
 } from './types'
@@ -56,6 +58,21 @@ export const api = {
   covers: () => request<{ covers: Cover[] }>('/covers'),
   search: (q: string) => request<{ query: string; results: { albums: Album[]; tracks: Track[]; members: Member[]; cfs: CfSong[]; covers: Cover[] } }>(`/search?q=${encodeURIComponent(q)}`),
   regionHint: () => request<{ country: string; region: 'CN' | 'GLOBAL'; suggestedLocale: string }>('/meta/region-hint'),
+  musicSearch: (params: { q: string; sources?: string[]; limit?: number }) => {
+    const search = new URLSearchParams({ q: params.q })
+    if (params.sources?.length) search.set('sources', params.sources.join(','))
+    if (params.limit) search.set('limit', String(params.limit))
+    return request<MusicSearchResponse>(`/music/search?${search.toString()}`)
+  },
+  musicResolve: (params: { q: string; source: string; providerId: string; quality?: string }) => {
+    const search = new URLSearchParams({
+      q: params.q,
+      source: params.source,
+      providerId: params.providerId,
+    })
+    if (params.quality) search.set('quality', params.quality)
+    return request<MusicResolveResponse>(`/music/resolve?${search.toString()}`)
+  },
   musicCandidates: (trackId: string) => request<{ trackId: string; selectedSource: string | null; recommendedSource: string; candidates: MusicCandidate[] }>(`/tracks/${encodeURIComponent(trackId)}/music-candidates`),
   playback: (trackId: string, source?: string) => {
     const query = source ? `?source=${encodeURIComponent(source)}` : ''

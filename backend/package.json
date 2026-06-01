@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/db/init.js && node dist/server.js",
     "seed": "tsx src/db/init.ts",
+    "music:warm-r2": "tsx src/scripts/warmMusicR2.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts"

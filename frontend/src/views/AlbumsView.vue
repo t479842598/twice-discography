@@ -1,6 +1,6 @@
 <template>
   <main class="page">
-    <PageHeader eyebrow="团体专辑" title="TWICE 团体专辑" description="这里只收录 TWICE 团体名义发行的韩语、日语专辑与单曲。" />
+    <PageHeader :eyebrow="t('page.albums.eyebrow')" :title="t('page.albums.title')" :description="t('page.albums.description')" />
     <div class="album-grid">
       <AlbumCard v-for="album in groupAlbums" :key="album.id" :album="album" />
     </div>
@@ -13,8 +13,10 @@ import { api } from '@/api/client'
 import type { Album } from '@/api/types'
 import AlbumCard from '@/components/catalog/AlbumCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { useI18n } from '@/i18n'
 
 const albums = ref<Album[]>([])
+const { t } = useI18n()
 const groupAlbums = computed(() => albums.value.filter((album) => album.id.startsWith('apple-twice') || (!album.id.startsWith('apple-') && album.type !== 'unit')))
 
 onMounted(async () => {

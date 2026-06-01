@@ -97,3 +97,38 @@ export function getTrackMusicRecord(trackId: string) {
     throw error
   }
 }
+
+export function listTrackMusicRecords() {
+  const db = getDatabase()
+
+  try {
+    const rows = db.prepare(`
+      SELECT
+        tracks.id,
+        tracks.title_zh,
+        tracks.title_en,
+        tracks.title_ja,
+        tracks.title_ko,
+        tracks.title_romanized,
+        albums.name_en AS album_name,
+        tracks.duration_sec,
+        tracks.music_square_query,
+        tracks.music_square_preferred,
+        tracks.netease_song_id,
+        tracks.qq_song_mid,
+        tracks.kuwo_rid,
+        tracks.joox_song_mid,
+        tracks.joox_song_id,
+        tracks.music_source_order_json
+      FROM tracks
+      LEFT JOIN albums ON albums.id = tracks.album_id
+      ORDER BY tracks.id
+    `).all() as TrackMusicRow[]
+
+    return rows.map(mapTrackMusicRow)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/no such table|no such column/i.test(message)) return []
+    throw error
+  }
+}

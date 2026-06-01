@@ -11,10 +11,10 @@
             <n-tag size="small" :type="candidate.quality.lossless ? 'success' : 'info'" :bordered="false">
               {{ candidate.quality.label }}
             </n-tag>
-            <n-tag v-if="candidate.recommended" size="small" type="error" :bordered="false">推荐</n-tag>
-            <n-tag v-if="candidate.hasLyrics" size="small" :bordered="false">歌词</n-tag>
-            <n-tag v-if="!candidate.playable" size="small" type="warning">不可播放</n-tag>
-            <n-tag v-if="failedSources.includes(candidate.source)" size="small" type="error">失败</n-tag>
+            <n-tag v-if="candidate.recommended" size="small" type="error" :bordered="false">{{ t('source.recommended') }}</n-tag>
+            <n-tag v-if="candidate.hasLyrics" size="small" :bordered="false">{{ t('source.lyrics') }}</n-tag>
+            <n-tag v-if="!candidate.playable" size="small" type="warning">{{ t('source.unavailable') }}</n-tag>
+            <n-tag v-if="failedSources.includes(candidate.source)" size="small" type="error">{{ t('source.failed') }}</n-tag>
           </div>
           <n-button
             size="small"
@@ -23,7 +23,7 @@
             class="source-action-button"
             @click="$emit('select', candidate.source)"
           >
-            {{ candidate.selected ? '当前' : '切换' }}
+            {{ candidate.selected ? t('source.current') : t('source.switch') }}
           </n-button>
         </div>
       </div>
@@ -33,6 +33,9 @@
 
 <script setup lang="ts">
 import type { MusicCandidate } from '@/api/types'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   candidates: MusicCandidate[]

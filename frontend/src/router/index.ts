@@ -9,7 +9,7 @@ import CfsView from '@/views/CfsView.vue'
 import CoversView from '@/views/CoversView.vue'
 import MembersView from '@/views/MembersView.vue'
 import MemberDetailView from '@/views/MemberDetailView.vue'
-import VarietyView from '@/views/VarietyView.vue'
+import MusicStationView from '@/views/MusicStationView.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,11 +20,12 @@ export const router = createRouter({
     { path: '/albums/:id', name: 'album-detail', component: AlbumDetailView },
     { path: '/tracks/:id', name: 'track-detail', component: TrackDetailView },
     { path: '/solo-unit', name: 'solo-unit', component: SoloUnitView },
-    { path: '/variety', name: 'variety', component: VarietyView },
+    { path: '/variety', redirect: '/' },
     { path: '/cfs', name: 'cfs', component: CfsView },
     { path: '/covers', name: 'covers', component: CoversView },
     { path: '/members', name: 'members', component: MembersView },
     { path: '/members/:id', name: 'member-detail', component: MemberDetailView },
+    { path: '/music-station', name: 'music-station', component: MusicStationView },
   ],
   scrollBehavior() {
     return { top: 0 }

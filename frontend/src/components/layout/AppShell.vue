@@ -27,19 +27,19 @@
       <RouterLink to="/" class="brand">
         <span class="brand-mark"><img src="/twice-logomark.png" alt="TWICE" width="66" height="66" decoding="async" /></span>
         <span>
-          <strong>TWICE Discography</strong>
-          <small>按年份浏览专辑与音乐</small>
+          <strong>{{ t('brand.title') }}</strong>
+          <small>{{ t('brand.subtitle') }}</small>
         </span>
       </RouterLink>
 
       <nav class="nav-links">
-        <RouterLink to="/">首页</RouterLink>
-        <RouterLink to="/albums">专辑</RouterLink>
-        <RouterLink to="/solo-unit">单人 / 小分队</RouterLink>
-        <RouterLink to="/variety">综艺</RouterLink>
-        <RouterLink to="/cfs">广告曲</RouterLink>
-        <RouterLink to="/covers">翻唱</RouterLink>
-        <RouterLink to="/members">成员</RouterLink>
+        <RouterLink to="/">{{ t('nav.home') }}</RouterLink>
+        <RouterLink to="/albums">{{ t('nav.albums') }}</RouterLink>
+        <RouterLink to="/solo-unit">{{ t('nav.soloUnit') }}</RouterLink>
+        <RouterLink to="/cfs">{{ t('nav.cfs') }}</RouterLink>
+        <RouterLink to="/covers">{{ t('nav.covers') }}</RouterLink>
+        <RouterLink to="/members">{{ t('nav.members') }}</RouterLink>
+        <RouterLink to="/music-station">{{ t('nav.musicStation') }}</RouterLink>
       </nav>
 
       <div class="topbar-actions">
@@ -49,23 +49,24 @@
               v-model:value="searchQuery"
               size="small"
               clearable
-              placeholder="搜索歌曲 / 专辑 / 成员"
+              :placeholder="t('search.placeholder')"
               @keydown.enter.prevent="runGlobalSearch"
             />
-            <n-button attr-type="submit" size="small" type="primary" :loading="searchLoading">搜索</n-button>
+            <n-button attr-type="submit" size="small" type="primary" :loading="searchLoading">{{ t('search.button') }}</n-button>
           </n-input-group>
         </form>
         <span v-if="searchHint" class="topbar-search-hint">{{ searchHint }}</span>
-        <n-button class="theme-toggle" circle secondary :aria-label="themeStore.isDark ? '切换浅色模式' : '切换深色模式'" @click="themeStore.toggleTheme">
+        <n-button class="theme-toggle" circle secondary :aria-label="themeStore.isDark ? t('theme.toLight') : t('theme.toDark')" @click="themeStore.toggleTheme">
           {{ themeStore.isDark ? '☀' : '☾' }}
         </n-button>
-        <n-select
-          class="locale-select"
-          size="small"
-          :value="localeStore.locale"
-          :options="localeOptions"
-          @update:value="localeStore.switchLocale"
-        />
+        <n-dropdown trigger="click" :options="localeDropdownOptions" @select="handleLocaleSelect">
+          <n-button class="locale-toggle" circle secondary :title="`${t('language.aria')}: ${localeStore.label}`" :aria-label="t('language.aria')">
+            <svg class="locale-toggle-icon" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+              <path d="M864 64a96 96 0 0 1 96 96v704a96 96 0 0 1-96 96H160a96 96 0 0 1-96-96V160a96 96 0 0 1 96-96h704z m0 64H160a32 32 0 0 0-32 32v704a32 32 0 0 0 32 32h704a32 32 0 0 0 32-32V160a32 32 0 0 0-32-32z m-322.4 256c0-31.456 40.64-44.032 58.4-18.08l133.6 195.168V384a32 32 0 0 1 64 0v280.48c0 31.456-40.64 44.032-58.4 18.08l-133.6-195.168v177.088a32 32 0 1 1-64 0z" fill="currentColor" />
+              <path d="M448 352a32 32 0 0 1 0 64H288v80h160a32 32 0 0 1 31.776 28.256L480 528a32 32 0 0 1-32 32H288v72.48h160a32 32 0 1 1 0 64H256a32 32 0 0 1-32-32V384a32 32 0 0 1 32-32z" fill="#FAAC08" />
+            </svg>
+          </n-button>
+        </n-dropdown>
       </div>
     </n-layout-header>
 
@@ -76,7 +77,7 @@
     <n-layout-footer bordered class="site-footer">
       <span>© 2026 t479842598. All rights reserved.</span>
       <a href="https://github.com/t479842598" target="_blank" rel="noreferrer">GitHub: t479842598</a>
-      <span>TWICE 相关名称、商标与媒体版权归原权利方所有。</span>
+      <span>{{ t('footer.disclaimer') }}</span>
     </n-layout-footer>
 
     <MiniAudioBar />
@@ -84,11 +85,13 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import type { Album, CfSong, Cover, Member, Track } from '@/api/types'
 import MiniAudioBar from '@/components/player/MiniAudioBar.vue'
+import { useI18n } from '@/i18n'
+import { isLocaleCode } from '@/i18n/messages'
 import { useLocaleStore } from '@/stores/locale'
 import { useThemeStore } from '@/stores/theme'
 import { pickText } from '@/utils/text'
@@ -96,6 +99,7 @@ import { pickText } from '@/utils/text'
 const localeStore = useLocaleStore()
 const themeStore = useThemeStore()
 const router = useRouter()
+const { localeLabels, supportedLocales, t } = useI18n()
 const siteVideoReady = ref(false)
 const siteVideoRef = ref<HTMLVideoElement | null>(null)
 const searchQuery = ref('')
@@ -105,12 +109,10 @@ const isMobile = ref(detectMobile())
 const siteBackgroundImage = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
 const siteBackgroundVideo = import.meta.env.VITE_SITE_BG_VIDEO || import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4'
 const siteBackgroundVideoType = siteBackgroundVideo.endsWith('.webm') ? 'video/webm' : 'video/mp4'
-const localeOptions = [
-  { label: '中文', value: 'zh-CN' },
-  { label: 'English', value: 'en-US' },
-  { label: '日本語', value: 'ja-JP' },
-  { label: '한국어', value: 'ko-KR' },
-]
+const localeDropdownOptions = computed(() => supportedLocales.map((locale) => ({
+  key: locale,
+  label: localeLabels[locale],
+})))
 
 onMounted(async () => {
   isMobile.value = detectMobile()
@@ -150,7 +152,7 @@ function resultTarget(results: SearchResults, query: string) {
 
   if (exactMember) {
     return {
-      label: `成员：${pickText(exactMember.realName, localeStore.locale)}`,
+      label: t('search.result.member', { value: pickText(exactMember.realName, localeStore.locale) }),
       to: { name: 'member-detail', params: { id: exactMember.id }, query: { fromSearch: encodedQuery } },
     }
   }
@@ -164,35 +166,35 @@ function resultTarget(results: SearchResults, query: string) {
   if (exactTrack || results.tracks[0]) {
     const track = exactTrack || results.tracks[0]
     return {
-      label: `歌曲：${pickText(track.title, localeStore.locale)}`,
+      label: t('search.result.track', { value: pickText(track.title, localeStore.locale) }),
       to: { name: 'track-detail', params: { id: track.id }, query: { fromSearch: encodedQuery } },
     }
   }
   if (results.albums[0]) {
     const album = results.albums[0]
     return {
-      label: `专辑：${pickText(album.title, localeStore.locale)}`,
+      label: t('search.result.album', { value: pickText(album.title, localeStore.locale) }),
       to: { name: 'album-detail', params: { id: album.id }, query: { fromSearch: encodedQuery } },
     }
   }
   if (results.members[0]) {
     const member = results.members[0]
     return {
-      label: `成员：${pickText(member.realName, localeStore.locale)}`,
+      label: t('search.result.member', { value: pickText(member.realName, localeStore.locale) }),
       to: { name: 'member-detail', params: { id: member.id }, query: { fromSearch: encodedQuery } },
     }
   }
   if (results.cfs[0]) {
     const cf = results.cfs[0]
     return {
-      label: `广告曲：${pickText(cf.title, localeStore.locale)}`,
+      label: t('search.result.cf', { value: pickText(cf.title, localeStore.locale) }),
       to: { name: 'cfs', query: { highlight: cf.id, q: encodedQuery } },
     }
   }
   if (results.covers[0]) {
     const cover = results.covers[0]
     return {
-      label: `翻唱：${cover.originalSong}`,
+      label: t('search.result.cover', { value: cover.originalSong }),
       to: { name: 'covers', query: { highlight: cover.id, q: encodedQuery } },
     }
   }
@@ -202,7 +204,7 @@ function resultTarget(results: SearchResults, query: string) {
 async function runGlobalSearch() {
   const query = searchQuery.value.trim()
   if (!query) {
-    searchHint.value = '输入关键词后搜索'
+    searchHint.value = t('search.emptyInput')
     window.setTimeout(() => {
       searchHint.value = ''
     }, 1800)
@@ -214,13 +216,13 @@ async function runGlobalSearch() {
     const { results } = await api.search(query)
     const target = resultTarget(results, query)
     if (!target) {
-      searchHint.value = '没有找到匹配内容'
+      searchHint.value = t('search.noResult')
       window.setTimeout(() => {
         searchHint.value = ''
       }, 2200)
       return
     }
-    searchHint.value = `已跳转 ${target.label}`
+    searchHint.value = t('search.redirected', { target: target.label })
     searchQuery.value = ''
     await router.push(target.to)
     window.setTimeout(() => {
@@ -229,5 +231,10 @@ async function runGlobalSearch() {
   } finally {
     searchLoading.value = false
   }
+}
+
+function handleLocaleSelect(key: string | number) {
+  const next = String(key)
+  if (isLocaleCode(next)) localeStore.switchLocale(next)
 }
 </script>
