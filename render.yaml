@@ -31,3 +31,21 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      - key: MUSIC_R2_CACHE_ENABLED
+        value: 'true'
+      - key: MUSIC_R2_CACHE_MISS_MODE
+        value: 'background'
+      - key: MUSIC_R2_MIN_AUDIO_BYTES
+        value: '16384'
+      - key: MUSIC_R2_MAX_BYTES
+        value: '9126805504'
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: twice-music-assets
+      - key: R2_PUBLIC_BASE_URL
+        value: https://cdn2.479842598.xyz
