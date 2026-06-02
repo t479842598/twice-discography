@@ -11,11 +11,8 @@ import CoversView from '@/views/CoversView.vue'
 import MembersView from '@/views/MembersView.vue'
 import MemberDetailView from '@/views/MemberDetailView.vue'
 import MusicStationView from '@/views/MusicStationView.vue'
-import AdminBiliSettingsView from '@/views/AdminBiliSettingsView.vue'
 import AdminDashboardView from '@/views/AdminDashboardView.vue'
 import AdminLoginView from '@/views/AdminLoginView.vue'
-import AdminMvsView from '@/views/AdminMvsView.vue'
-import AdminUsersView from '@/views/AdminUsersView.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -34,9 +31,9 @@ export const router = createRouter({
     { path: '/music-station', name: 'music-station', component: MusicStationView },
     { path: '/admin/login', name: 'admin-login', component: AdminLoginView },
     { path: '/admin', name: 'admin-dashboard', component: AdminDashboardView },
-    { path: '/admin/mvs', name: 'admin-mvs', component: AdminMvsView },
-    { path: '/admin/users', name: 'admin-users', component: AdminUsersView },
-    { path: '/admin/settings/bilibili', name: 'admin-bili-settings', component: AdminBiliSettingsView },
+    { path: '/admin/mvs', name: 'admin-mvs', component: AdminDashboardView },
+    { path: '/admin/users', name: 'admin-users', component: AdminDashboardView },
+    { path: '/admin/settings/bilibili', name: 'admin-bili-settings', component: AdminDashboardView },
   ],
   scrollBehavior() {
     return { top: 0 }

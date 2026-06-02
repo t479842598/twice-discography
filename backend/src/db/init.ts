@@ -165,9 +165,23 @@ const initDirname = path.dirname(initFilename)
 const backendRoot = path.resolve(initDirname, '../..')
 const albumCoverExtensions = ['.webp', '.jpg', '.png', '.avif']
 const staticPrefix = (process.env.STATIC_PREFIX || '/static').replace(/\/$/, '')
+const r2PublicBaseUrl = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '')
+
+function safeAlbumCoverName(albumId: string) {
+  return albumId.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+function albumCoverCdnUrl(albumId: string) {
+  if (!r2PublicBaseUrl) return null
+  return `${r2PublicBaseUrl}/album-covers/${safeAlbumCoverName(albumId)}.jpg`
+}
+
+function remoteCoverUrl(value: unknown) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value) ? value : null
+}
 
 function albumCoverLocalPath(albumId: string) {
-  const baseName = albumId.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+  const baseName = safeAlbumCoverName(albumId)
   for (const extension of albumCoverExtensions) {
     const absolutePath = path.join(backendRoot, 'public', 'albums', `${baseName}${extension}`)
     if (fs.existsSync(absolutePath)) return `${staticPrefix}/albums/${baseName}${extension}`
@@ -205,13 +219,13 @@ export function initializeDatabase() {
 
     const insertAlbum = db.prepare(`
       INSERT INTO albums (
-        id, type, language, release_date, cover_local, cover_thumb_local,
+        id, type, language, release_date, cover_local, cover_remote, cover_thumb_local,
         yt_video_id, bili_bvid, bili_page,
         name_zh, name_en, name_ja, name_ko, name_romanized,
         desc_zh, desc_en, desc_ja, desc_ko
       )
       VALUES (
-        @id, @type, @language, @release_date, @cover_local, @cover_thumb_local,
+        @id, @type, @language, @release_date, @cover_local, @cover_remote, @cover_thumb_local,
         @yt_video_id, @bili_bvid, @bili_page,
         @name_zh, @name_en, @name_ja, @name_ko, @name_romanized,
         @desc_zh, @desc_en, @desc_ja, @desc_ko
@@ -224,7 +238,8 @@ export function initializeDatabase() {
         bili_bvid: null,
         bili_page: 1,
         ...album,
-        cover_local: albumCoverLocalPath(album.id) ?? album.cover_local ?? null,
+        cover_local: albumCoverCdnUrl(album.id) ?? albumCoverLocalPath(album.id) ?? album.cover_local ?? null,
+        cover_remote: remoteCoverUrl(album.cover_local),
         cover_thumb_local: null,
       })
     }
@@ -409,6 +424,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   closeDatabase()
   console.log(`Seeded TWICE catalog: ${JSON.stringify(result)}`)
 }
+
 
 
 

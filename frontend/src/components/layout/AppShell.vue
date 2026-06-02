@@ -71,7 +71,8 @@
           <RouterLink v-if="!adminLoggedIn" class="admin-login-link" to="/admin/login">登录</RouterLink>
           <n-dropdown v-else trigger="click" :options="adminAccountMenuOptions" @select="handleAdminAccountSelect">
             <button class="admin-account-button" type="button" :title="`已登录：${adminDisplayName}`">
-              <span class="admin-account-avatar">{{ adminInitial }}</span>
+              <img v-if="adminBiliProfile?.face" class="admin-account-avatar" :src="adminBiliProfile.face" :alt="adminDisplayName" />
+              <span v-else class="admin-account-avatar">{{ adminInitial }}</span>
               <span class="admin-account-name">{{ adminDisplayName }}</span>
               <span class="admin-account-caret" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -103,7 +104,7 @@ import type { DropdownOption } from 'naive-ui'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { api } from '@/api/client'
-import type { AdminUser, Album, CfSong, Cover, Member, Track } from '@/api/types'
+import type { AdminUser, Album, BiliProfile, CfSong, Cover, Member, Track } from '@/api/types'
 import MiniAudioBar from '@/components/player/MiniAudioBar.vue'
 import { useI18n } from '@/i18n'
 import { isLocaleCode } from '@/i18n/messages'
@@ -122,6 +123,7 @@ const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchHint = ref('')
 const adminUser = ref<AdminUser | null>(null)
+const adminBiliProfile = ref<BiliProfile | null>(null)
 const isMobile = ref(detectMobile())
 const siteBackgroundImage = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
 const siteBackgroundVideo = import.meta.env.VITE_SITE_BG_VIDEO || import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4'
@@ -131,7 +133,7 @@ const localeDropdownOptions = computed(() => supportedLocales.map((locale) => ({
   label: localeLabels[locale],
 })))
 const adminLoggedIn = computed(() => Boolean(adminUser.value))
-const adminDisplayName = computed(() => adminUser.value?.displayName || adminUser.value?.email || 'Admin')
+const adminDisplayName = computed(() => adminBiliProfile.value?.uname || adminUser.value?.displayName || adminUser.value?.email || 'Admin')
 const adminInitial = computed(() => adminDisplayName.value.trim().slice(0, 1).toUpperCase() || 'A')
 const adminAccountMenuOptions = computed<DropdownOption[]>(() => {
   const canManageUsers = adminUser.value?.roles.includes('owner')
@@ -163,14 +165,23 @@ onMounted(async () => {
 async function refreshAdminState() {
   try {
     adminUser.value = (await api.adminSession()).user
+    if (adminUser.value) {
+      const bili = await api.adminBiliProfile().catch(() => null)
+      adminBiliProfile.value = bili?.profile ?? null
+    } else {
+      adminBiliProfile.value = null
+    }
   } catch {
     adminUser.value = null
+  adminBiliProfile.value = null
+    adminBiliProfile.value = null
   }
 }
 
 async function logoutAdmin() {
   await api.adminLogout().catch(() => undefined)
   adminUser.value = null
+  adminBiliProfile.value = null
   if (route.path.startsWith('/admin')) {
     await router.push('/admin/login')
   }

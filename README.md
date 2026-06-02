@@ -2,10 +2,20 @@
 
 > TWICE 音乐作品资料站：专辑、歌曲、MV、Solo / 小分队、MISAMO、广告曲、翻唱、成员资料与多源音乐播放。
 
-最后更新：2026-06-01  
+最后更新：2026-06-02  
 当前构建验证：`pnpm --filter frontend build`、`pnpm --filter backend build` 通过
 
 ## 更新日志
+
+### 2026-06-02
+
+- 专辑封面缓存改为 Cloudflare R2 / CDN 优先，后端接口返回 CDN 封面并保留 Apple 原图作为兜底。
+- 新增 `pnpm --filter backend covers:r2`，可批量上传专辑封面到 R2 并把数据库 `cover_local` 更新为 CDN 链接。
+- 数据库初始化时会优先使用 `R2_PUBLIC_BASE_URL/album-covers/...`，避免重新 seed 后回退到后端 `/static` 封面。
+- 图片和前端静态资源增加浏览器长缓存，切换页面时不再重复拉取相同封面。
+- 生产 `pnpm start` 改为只启动后端，不再每次启动重建 SQLite，低内存服务器先单独运行 `pnpm --filter backend db:init`。
+- 后台管理改为 Vue 3 + Naive UI 标签页布局，顶部读取已配置 B站 Cookie 展示账号头像、等级和粉丝数据。
+- 补充 Windows 服务器一体部署、低内存构建与端口/防火墙说明。
 
 ### 2026-06-01
 
@@ -202,7 +212,7 @@ pnpm dev
 | `MUSIC_R2_MAX_BYTES` | R2 音频缓存总容量上限 | 默认 `9126805504`，即 8.5GB |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare R2 上传凭据 | 仅配置在后端环境变量 |
 | `R2_BUCKET` | R2 bucket 名称 | 例如 `twice-music-assets` |
-| `R2_PUBLIC_BASE_URL` | R2 公开 CDN 域名 | 例如 `https://cdn2.479842598.xyz` |
+| `R2_PUBLIC_BASE_URL` | R2 公开 CDN 域名 | 例如 `https://cdn2.479842598.xyz`；音频缓存与专辑封面 CDN 共用 |
 | `ADMIN_DEFAULT_PASSWORD` | 首次启动自动创建默认管理员密码 | 默认 `tang1234`，上线后请立即修改 |
 | `BILI_CREDENTIAL_ENCRYPTION_KEY` | 加密保存 B站 Cookie 的服务端密钥 | 生产环境填写随机强密钥，只放后端 |
 | `MV_PROXY_SIGNING_SECRET` | 后端和 Worker 共同使用的 MV 代理签名密钥 | 生产环境填写随机强密钥 |
@@ -219,6 +229,7 @@ pnpm dev
 - 云平台若只提供 `PORT` 变量，而本项目读取 `BACKEND_PORT`，需要在平台环境变量中把 `BACKEND_PORT` 设置为平台要求的端口。
 - SQLite 文件必须放在持久化目录中，否则云平台重启或重新部署后数据可能丢失。
 - R2 音频缓存只适合缓存你有权分发的音频；配置教程见 `docs/R2_MUSIC_CACHE.md`，批量预热可运行 `pnpm music:warm-r2 -- --concurrency=2`。
+- 专辑封面可运行 `pnpm --filter backend covers:r2` 上传到 R2，数据库会写入 `R2_PUBLIC_BASE_URL/album-covers/...`，前端加载失败时再回退 Apple 原图。
 - 后台默认账号为 `admin`，默认密码为 `tang1234`。只有 `admin_users` 表为空时才会自动创建，登录后建议在 `/admin/users` 新建正式账号或修改密码。
 - B站 MV 高清播放不把 Cookie 下发给浏览器；后端只解析并签发短时效 Worker URL，Worker 只校验签名并转发视频 Range 请求。Worker 示例在 `workers/mv-proxy`。
 - 音乐站播放链路仍使用原来的音乐接口和可选 R2 音频缓存，不走 B站 MV 代理。
@@ -609,8 +620,16 @@ BACKEND_PORT=3000
 BACKEND_HOST=0.0.0.0
 DATABASE_PATH=./data/twice.db
 CORS_ORIGIN=http://localhost:3000
+FRONTEND_ORIGIN=http://localhost:3000
 VITE_API_BASE=/api
 VITE_STATIC_BASE=/static
+
+# 可选：专辑封面 / 音频 R2 CDN
+R2_ACCOUNT_ID=你的账号ID
+R2_ACCESS_KEY_ID=你的AccessKey
+R2_SECRET_ACCESS_KEY=你的SecretKey
+R2_BUCKET=twice-music-assets
+R2_PUBLIC_BASE_URL=https://cdn2.example.com
 ```
 
 #### 3. 后台运行
@@ -629,6 +648,34 @@ New-NetFirewallRule -DisplayName "TWICE Discography" -Direction Inbound -LocalPo
 ```
 
 如果需要域名和 HTTPS，建议在 Windows 上使用 IIS + URL Rewrite + ARR，或 Nginx for Windows 反向代理到 `http://127.0.0.1:3000`。
+
+#### 5. 低内存 Windows 部署建议
+
+如果 Linux 服务器内存不足，可以在本地或 Windows 服务器上先完成构建，再只运行后端：
+
+```powershell
+# 首次构建
+pnpm install --frozen-lockfile
+pnpm --filter frontend build
+pnpm --filter backend build
+pnpm --filter backend db:init
+
+# 可选：上传专辑封面到 R2，并把数据库封面链接改成 CDN
+pnpm --filter backend covers:r2
+
+# 运行生产服务
+pnpm --filter backend start
+```
+
+低内存机器上建议：
+
+- 构建时关闭其他程序，优先单独执行 `pnpm --filter frontend build` 和 `pnpm --filter backend build`，不要并行跑 `pnpm build`。
+- 已构建过后重启用 `.\start-windows.cmd -SkipInstall -SkipBuild`，避免每次重启都重新打包。
+- `data/twice.db` 要保留在服务器本地磁盘；迁移时把 `data/` 一起复制过去。
+- `pnpm --filter backend start` 不会重新 seed，首次部署或需要重置数据时才运行 `pnpm --filter backend db:init`。
+- 如果使用 R2 封面 CDN，生产环境必须配置 `R2_PUBLIC_BASE_URL`；运行 `pnpm --filter backend covers:r2` 后接口会优先返回 CDN 封面。
+- 域名 HTTPS 可用 IIS + ARR / URL Rewrite，反向代理到 `http://127.0.0.1:3000`。
+- 图片和前端静态资源会返回长缓存；如果替换同名图片，需要清浏览器/CDN 缓存或改文件名。
 
 ### 推荐方案 C：前后端分离部署
 
@@ -978,3 +1025,4 @@ pnpm seed
 ## License
 
 MIT
+

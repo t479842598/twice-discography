@@ -23,6 +23,26 @@ function Ensure-Command($Name, $InstallHint) {
   throw "$Name is not installed or not available in PATH. $InstallHint"
 }
 
+function Resolve-BackendDatabasePath {
+  $ConfiguredPath = $null
+  if (Test-Path ".env") {
+    $ConfiguredLine = Get-Content ".env" | Where-Object { $_ -match '^DATABASE_PATH=' } | Select-Object -First 1
+    if ($ConfiguredLine) {
+      $ConfiguredPath = $ConfiguredLine.Substring('DATABASE_PATH='.Length).Trim().Trim('"')
+    }
+  }
+
+  if (-not $ConfiguredPath) {
+    $ConfiguredPath = ".\data\twice.db"
+  }
+
+  if ([System.IO.Path]::IsPathRooted($ConfiguredPath)) {
+    return $ConfiguredPath
+  }
+
+  return Join-Path (Join-Path $RootDir "backend") $ConfiguredPath
+}
+
 function Test-PortAvailable($PortNumber) {
   try {
     $listeners = Get-NetTCPConnection -LocalPort $PortNumber -State Listen -ErrorAction SilentlyContinue
@@ -84,6 +104,12 @@ if (-not $SkipBuild) {
   pnpm build
 }
 
+$DatabasePath = Resolve-BackendDatabasePath
+if (-not (Test-Path $DatabasePath)) {
+  Write-Host "Database not found. Initializing SQLite data..."
+  pnpm --filter backend db:init
+}
+
 @"
 `$ErrorActionPreference = "Stop"
 Set-Location "$RootDir"
@@ -132,3 +158,4 @@ Write-Host "Log: $StdoutLog"
 if (-not $Healthy) {
   Write-Warning "Process started, but health check did not pass yet. Try $HealthUrl later, or check $StderrLog."
 }
+

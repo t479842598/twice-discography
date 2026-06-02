@@ -363,8 +363,8 @@ a {
 
 .admin-auth-slot {
   display: flex;
-  width: 144px;
-  flex: 0 0 144px;
+  width: 180px;
+  flex: 0 0 180px;
   justify-content: flex-end;
 }
 
@@ -390,8 +390,8 @@ a {
 
 .admin-account-avatar {
   display: inline-grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-strong), var(--accent));
@@ -399,7 +399,9 @@ a {
   font-size: 14px;
   font-weight: 900;
   line-height: 1;
+  object-fit: cover;
 }
+
 
 .admin-account-name {
   display: inline-block;
@@ -1757,8 +1759,8 @@ a {
   }
 
   .admin-auth-slot {
-    width: 144px;
-    flex-basis: 144px;
+    width: 180px;
+    flex-basis: 180px;
   }
 
   .content {
@@ -2151,8 +2153,8 @@ a {
   }
 
   .admin-auth-slot {
-    width: 136px;
-    flex-basis: 136px;
+    width: 160px;
+    flex-basis: 160px;
   }
 
   .content {
@@ -3040,3 +3042,206 @@ a {
     padding: 12px;
   }
 }
+
+.admin-management-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -8px 0 18px;
+}
+
+.admin-management-tabs .n-button {
+  min-width: 120px;
+}
+
+
+.admin-dashboard-page {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-bili-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 210px;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(35, 39, 48, 0.92), rgba(67, 74, 90, 0.82));
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.admin-bili-banner {
+  position: absolute;
+  inset: 0 0 64px;
+  background:
+    radial-gradient(circle at 16% 25%, rgba(255, 107, 157, 0.5), transparent 26%),
+    radial-gradient(circle at 82% 18%, rgba(0, 194, 255, 0.42), transparent 28%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  opacity: 0.9;
+}
+
+.admin-bili-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(19, 21, 28, 0.1), rgba(19, 21, 28, 0.66));
+}
+
+.admin-bili-profile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 72px 28px 22px;
+}
+
+.admin-bili-avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.admin-bili-avatar {
+  display: grid;
+  width: 92px;
+  height: 92px;
+  place-items: center;
+  border: 3px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  object-fit: cover;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+}
+
+.admin-bili-main {
+  min-width: 0;
+}
+
+.admin-bili-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-bili-name-row h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.05;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.32);
+}
+
+.admin-bili-main p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.admin-bili-level,
+.admin-bili-vip,
+.admin-bili-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #ff5d8f, #ff8f3d);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-bili-vip {
+  background: linear-gradient(135deg, #fb7299, #ffb3d9);
+}
+
+.admin-bili-badge {
+  max-width: 220px;
+  overflow: hidden;
+  background: rgba(30, 34, 42, 0.62);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-bili-stats {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 0 28px 20px 138px;
+  color: rgba(255, 255, 255, 0.76);
+  font-weight: 800;
+}
+
+.admin-bili-stats strong {
+  margin-left: 4px;
+  color: #fff;
+}
+
+.admin-dashboard-tabs {
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme='dark'] .admin-dashboard-tabs {
+  background: rgba(45, 27, 46, 0.86);
+}
+
+.admin-dashboard-tabs > .n-tabs-nav {
+  padding: 4px 18px 0;
+  background: rgba(34, 38, 46, 0.92);
+}
+
+.admin-dashboard-tabs > .n-tabs-nav .n-tabs-tab {
+  padding: 18px 12px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.admin-dashboard-tabs > .n-tabs-nav .n-tabs-tab.n-tabs-tab--active {
+  color: #11c5f7;
+}
+
+.admin-dashboard-tabs > .n-tab-pane {
+  padding: 18px;
+}
+
+.admin-dashboard-tabs .admin-page {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.admin-dashboard-tabs .admin-page > .page-header {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .admin-bili-profile {
+    align-items: center;
+    padding: 58px 18px 18px;
+  }
+
+  .admin-bili-avatar {
+    width: 72px;
+    height: 72px;
+  }
+
+  .admin-bili-stats {
+    padding: 0 18px 18px;
+  }
+
+  .admin-dashboard-tabs > .n-tab-pane {
+    padding: 12px;
+  }
+}
+

@@ -36,3 +36,11 @@ export function closeDatabase() {
   connection = null
   connectionPath = null
 }
+
+export function ensureRuntimeMigrations() {
+  const db = getDatabase()
+  const albumColumns = db.prepare('PRAGMA table_info(albums)').all() as Array<{ name: string }>
+  if (albumColumns.length > 0 && !albumColumns.some((column) => column.name === 'cover_remote')) {
+    db.prepare('ALTER TABLE albums ADD COLUMN cover_remote TEXT').run()
+  }
+}

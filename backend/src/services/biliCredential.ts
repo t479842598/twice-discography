@@ -29,6 +29,21 @@ interface BiliViewData {
   pages?: Array<{ page: number; cid: number; part?: string }>
 }
 
+interface BiliNavData {
+  isLogin?: boolean
+  uname?: string
+  mid?: number
+  face?: string
+  level_info?: { current_level?: number }
+  vipStatus?: number
+  vipType?: number
+  pendant?: { name?: string; image?: string }
+  official?: { title?: string; desc?: string; role?: number; type?: number }
+  follower?: number
+  following?: number
+  dynamic?: number
+}
+
 interface BiliPlayData {
   quality?: number
   accept_quality?: number[]
@@ -158,12 +173,42 @@ export async function resolveBiliVideoMeta(input: string) {
   }
 }
 
+export async function getBiliProfile() {
+  const cookie = getBiliCookie()
+  if (!cookie) return { configured: false, profile: null, message: 'B站凭证未配置' }
+
+  const result = await fetchBiliJson<BiliNavData>(VERIFY_URL, cookie)
+  if (result.code !== 0 || !result.data?.isLogin) {
+    return { configured: true, profile: null, message: result.message || 'B站登录态不可用' }
+  }
+
+  const data = result.data
+  return {
+    configured: true,
+    profile: {
+      mid: data.mid ?? null,
+      uname: data.uname || 'B站账号',
+      face: toHttpsUrl(data.face),
+      level: data.level_info?.current_level ?? null,
+      vipStatus: data.vipStatus ?? null,
+      vipType: data.vipType ?? null,
+      pendantName: data.pendant?.name ?? null,
+      pendantImage: toHttpsUrl(data.pendant?.image),
+      officialTitle: data.official?.title || data.official?.desc || null,
+      follower: data.follower ?? null,
+      following: data.following ?? null,
+      dynamic: data.dynamic ?? null,
+    },
+    message: 'ok',
+  }
+}
+
 export async function verifyBiliCredential() {
   const cookie = getBiliCookie()
   if (!cookie) return { ok: false, message: 'B站凭证未配置' }
 
   try {
-    const result = await fetchBiliJson<{ isLogin?: boolean; uname?: string; vipStatus?: number; vipType?: number }>(VERIFY_URL, cookie)
+    const result = await fetchBiliJson<BiliNavData>(VERIFY_URL, cookie)
     const ok = result.code === 0 && Boolean(result.data?.isLogin)
     const message = ok
       ? `已登录：${result.data?.uname || 'B站账号'}，VIP 状态：${result.data?.vipStatus ? '可用' : '未知/未开通'}`

@@ -9,7 +9,12 @@
       <RouterLink class="section-toggle" to="/admin">返回后台</RouterLink>
     </section>
 
-    <section class="panel admin-panel">
+    <section class="admin-management-tabs">
+      <n-button :type="activePanel === 'users' ? 'primary' : 'default'" secondary @click="activePanel = 'users'">用户管理</n-button>
+      <n-button :type="activePanel === 'roles' ? 'primary' : 'default'" secondary @click="activePanel = 'roles'">角色管理</n-button>
+    </section>
+
+    <section v-if="activePanel === 'users'" class="panel admin-panel">
       <div class="admin-section-title">
         <div>
           <h2>用户管理</h2>
@@ -38,7 +43,7 @@
       </div>
     </section>
 
-    <section class="panel admin-panel">
+    <section v-if="activePanel === 'roles'" class="panel admin-panel">
       <div class="admin-section-title">
         <div>
           <h2>角色管理</h2>
@@ -113,6 +118,7 @@ import { RouterLink } from 'vue-router'
 import { api } from '@/api/client'
 import type { AdminRole, AdminUser } from '@/api/types'
 
+const activePanel = ref<'users' | 'roles'>('users')
 const users = ref<AdminUser[]>([])
 const roles = ref<AdminRole[]>([])
 const message = ref('')

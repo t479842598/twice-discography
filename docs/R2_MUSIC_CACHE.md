@@ -83,3 +83,19 @@ pnpm music:warm-r2 -- --limit=5 --concurrency=1
 4. 打开浏览器 Network，确认音频域名是 `cdn2.479842598.xyz`。
 5. 打开音乐站搜索页播放任意搜索结果，确认不会写入 R2。
 
+
+## 5. 专辑封面 CDN
+
+专辑封面也可以复用同一组 R2 配置上传到 CDN。脚本会优先读取 `backend/public/albums` 中已经下载的封面；如果本地没有，会使用种子数据里的 Apple 原图下载后上传。
+
+```bash
+pnpm --filter backend covers:r2
+
+# 只预览将要写入的 CDN 链接，不上传也不更新数据库
+pnpm --filter backend covers:r2 -- --dry-run
+
+# 强制重新上传并覆盖数据库链接
+pnpm --filter backend covers:r2 -- --force
+```
+
+上传成功后，数据库 `albums.cover_local` 会变成 `R2_PUBLIC_BASE_URL/album-covers/<album-id>.jpg`。接口仍会返回 `coverRemote` 原始 Apple 图片，前端的 `FallbackImage` 会在 CDN 加载失败时自动回退。

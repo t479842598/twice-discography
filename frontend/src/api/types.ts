@@ -206,6 +206,21 @@ export interface AdminMvListResponse {
   pageSize: number
 }
 
+export interface BiliProfile {
+  mid: number | null
+  uname: string
+  face: string | null
+  level: number | null
+  vipStatus: number | null
+  vipType: number | null
+  pendantName: string | null
+  pendantImage: string | null
+  officialTitle: string | null
+  follower: number | null
+  following: number | null
+  dynamic: number | null
+}
+
 export interface BiliVideoMeta {
   biliBvid: string
   biliPage: number

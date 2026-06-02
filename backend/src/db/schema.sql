@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS albums (
   language TEXT NOT NULL,
   release_date TEXT NOT NULL,
   cover_local TEXT,
+  cover_remote TEXT,
   cover_thumb_local TEXT,
   yt_video_id TEXT,
   bili_bvid TEXT,

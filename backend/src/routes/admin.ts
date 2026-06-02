@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { createAdminRole, createAdminUser, deleteAdminRole, listAdminRoles, listAdminUsers, normalizeAdminRoles, updateAdminRole, updateAdminUser } from '../db/admin.js'
 import { listMvConfigs, upsertMvConfig } from '../db/mv.js'
-import { getBiliCredentialStatus, resolveBiliVideoMeta, saveBiliCredential, verifyBiliCredential } from '../services/biliCredential.js'
+import { getBiliCredentialStatus, getBiliProfile, resolveBiliVideoMeta, saveBiliCredential, verifyBiliCredential } from '../services/biliCredential.js'
 import {
   clearAdminSessionCookie,
   ensureDefaultAdmin,
@@ -173,6 +173,15 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       enabled: body.enabled === undefined ? true : Boolean(body.enabled),
     })
     return { mv }
+  })
+
+  app.get('/bili-profile', async (request, reply) => {
+    if (!requireAdmin(request, reply, ['owner', 'admin', 'editor'])) return reply
+    try {
+      return await getBiliProfile()
+    } catch (error) {
+      return reply.code(502).send({ error: 'bili_profile_failed', message: error instanceof Error ? error.message : String(error) })
+    }
   })
 
   app.get('/bili-credential', async (request, reply) => {
