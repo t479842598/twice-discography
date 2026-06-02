@@ -16,15 +16,8 @@ jobs:
 
       - name: Pack project
         run: |
-          tar \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='frontend/dist' \
-            --exclude='backend/dist' \
-            --exclude='data' \
-            --exclude='.env' \
-            --exclude='twice-discography.tar.gz' \
-            -czf twice-discography.tar.gz .
+          mkdir -p deploy-package
+          git archive --format=tar.gz --output=deploy-package/twice-discography.tar.gz HEAD
 
       - name: Upload package
         uses: appleboy/scp-action@v0.1.7
@@ -33,8 +26,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: twice-discography.tar.gz
+          source: deploy-package/twice-discography.tar.gz
           target: /www/wwwroot/
+          strip_components: 1
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
@@ -73,3 +67,4 @@ jobs:
             pnpm --filter backend build
             pm2 restart twice-backend
             pm2 save
+
