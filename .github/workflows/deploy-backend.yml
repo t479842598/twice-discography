@@ -23,6 +23,7 @@ jobs:
             --exclude='backend/dist' \
             --exclude='data' \
             --exclude='.env' \
+            --exclude='twice-discography.tar.gz' \
             -czf twice-discography.tar.gz .
 
       - name: Upload package
