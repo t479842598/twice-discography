@@ -11,11 +11,11 @@
       </template>
     </PageHeader>
 
-    <img
-      v-if="track?.coverLocal"
+    <FallbackImage
+      v-if="coverSources.length"
       class="track-hero-cover"
-      :src="track.coverLocal"
-      :alt="`${pickText(track.title, localeStore.locale)} cover`"
+      :sources="coverSources"
+      :alt="track ? `${pickText(track.title, localeStore.locale)} cover` : ''"
       decoding="async"
       fetchpriority="high"
     />
@@ -44,10 +44,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { Track } from '@/api/types'
+import FallbackImage from '@/components/common/FallbackImage.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import MusicSourceList from '@/components/player/MusicSourceList.vue'
 import { useI18n } from '@/i18n'
@@ -60,6 +61,7 @@ const localeStore = useLocaleStore()
 const audioStore = useAudioStore()
 const { t } = useI18n()
 const track = ref<Track | null>(null)
+const coverSources = computed(() => (track.value ? [track.value.coverLocal, track.value.coverRemote].filter(Boolean) as string[] : []))
 
 // 移动端使用单列，桌面端使用双列
 const trackGridCols = 'xs:1 s:1 m:2 l:2 xl:2 2xl:2'

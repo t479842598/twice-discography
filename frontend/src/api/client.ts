@@ -43,7 +43,7 @@ function normalizeStaticUrls<T>(payload: T): T {
   const record = payload as Record<string, unknown>
   const normalized: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(record)) {
-    normalized[key] = key === 'coverLocal' || key === 'photoLocal'
+    normalized[key] = key === 'coverLocal' || key === 'coverRemote' || key === 'photoLocal'
       ? withStaticBase(value as string | null | undefined)
       : normalizeStaticUrls(value)
   }
@@ -112,6 +112,7 @@ export const api = {
   },
   adminLogin: (email: string, password: string) => request<{ user: AdminUser }>('/admin/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   adminLogout: () => request<{ ok: boolean }>('/admin/auth/logout', { method: 'POST' }),
+  adminSession: () => request<{ user: AdminUser | null }>('/admin/session'),
   adminMe: () => request<{ user: AdminUser }>('/admin/me'),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
   adminCreateUser: (input: { email: string; displayName: string; password: string; roles: string[] }) => request<{ user: AdminUser }>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),

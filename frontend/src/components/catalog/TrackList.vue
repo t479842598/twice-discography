@@ -3,7 +3,14 @@
     <n-list-item v-for="track in tracks" :key="track.id">
       <div class="track-row" @mouseenter="audioStore.prefetchTrack(track)" @focusin="audioStore.prefetchTrack(track)">
         <RouterLink :to="`/tracks/${track.id}`" class="track-cover-link">
-          <img v-if="track.coverLocal" class="track-cover" :src="track.coverLocal" :alt="`${pickText(track.title, localeStore.locale)} cover`" loading="lazy" decoding="async" />
+          <FallbackImage
+            v-if="trackCoverSources(track).length"
+            class="track-cover"
+            :sources="trackCoverSources(track)"
+            :alt="`${pickText(track.title, localeStore.locale)} cover`"
+            loading="lazy"
+            decoding="async"
+          />
           <div v-else class="track-index">{{ track.trackNo || '♪' }}</div>
         </RouterLink>
         <div class="track-main">
@@ -53,6 +60,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Track } from '@/api/types'
+import FallbackImage from '@/components/common/FallbackImage.vue'
 import MvPlayer from '@/components/player/MvPlayer.vue'
 import { useI18n } from '@/i18n'
 import { useAudioStore } from '@/stores/audio'
@@ -76,6 +84,10 @@ function prefetchVisibleTracks() {
 function openMv(track: Track) {
   currentMvTrack.value = track
   showMvPlayer.value = true
+}
+
+function trackCoverSources(track: Track) {
+  return [track.coverLocal, track.coverRemote].filter(Boolean) as string[]
 }
 
 onMounted(prefetchVisibleTracks)

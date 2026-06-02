@@ -49,6 +49,7 @@ export function buildServer() {
   })
 
   app.register(helmet, {
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],

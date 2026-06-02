@@ -1,6 +1,22 @@
 import { getDatabase } from './database.js'
+import { appleAlbums } from './seed/appleCatalog.js'
+import { albums as seedAlbums } from './seed/catalog.js'
 
 type Row = Record<string, unknown>
+
+function isRemoteUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^https?:\/\//i.test(value)
+}
+
+const coverRemoteByAlbumId = new Map(
+  [...seedAlbums, ...appleAlbums]
+    .filter((album) => isRemoteUrl(album.cover_local))
+    .map((album) => [album.id, album.cover_local]),
+)
+
+function coverRemote(albumId: unknown) {
+  return typeof albumId === 'string' ? coverRemoteByAlbumId.get(albumId) ?? null : null
+}
 
 function parseJsonArray(value: unknown) {
   if (typeof value !== 'string' || !value) return []
@@ -39,6 +55,7 @@ export function mapAlbum(row: Row) {
     releaseDate: row.release_date,
     year: Number(String(row.release_date).slice(0, 4)),
     coverLocal: row.cover_local,
+    coverRemote: coverRemote(row.id),
     title: titles(row),
     description: {
       zh: row.desc_zh ?? '',
@@ -65,6 +82,7 @@ export function mapTrack(row: Row) {
       : null,
     albumReleaseDate: row.album_release_date ?? null,
     coverLocal: row.album_cover_local ?? null,
+    coverRemote: coverRemote(row.album_id),
     year: row.album_release_date ? Number(String(row.album_release_date).slice(0, 4)) : null,
     trackNo: row.track_no,
     durationSec: row.duration_sec,

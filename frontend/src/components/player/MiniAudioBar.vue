@@ -7,11 +7,11 @@
     :aria-label="t('player.expand')"
     @click="isMinimized = false"
   >
-    <img
-      v-if="audioStore.currentTrack.coverLocal"
+    <FallbackImage
+      v-if="currentCoverSources.length"
       class="mini-audio-cover"
       :class="{ 'is-spinning': isCoverSpinning }"
-      :src="audioStore.currentTrack.coverLocal"
+      :sources="currentCoverSources"
       :alt="pickText(audioStore.currentTrack.title, localeStore.locale)"
       decoding="async"
     />
@@ -20,11 +20,11 @@
 
   <div v-if="audioStore.currentTrack" v-show="!isMinimized" class="mini-audio">
     <div class="mini-audio-info">
-      <img
-        v-if="audioStore.currentTrack.coverLocal"
+      <FallbackImage
+        v-if="currentCoverSources.length"
         class="mini-audio-cover"
         :class="{ 'is-spinning': isCoverSpinning }"
-        :src="audioStore.currentTrack.coverLocal"
+        :sources="currentCoverSources"
         :alt="pickText(audioStore.currentTrack.title, localeStore.locale)"
         decoding="async"
       />
@@ -207,6 +207,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from '@/i18n'
+import FallbackImage from '@/components/common/FallbackImage.vue'
 import { useAudioStore } from '@/stores/audio'
 import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
@@ -233,6 +234,10 @@ const playModeLabel = computed(() => {
 })
 const playButtonLabel = computed(() => (audioStore.loading ? t('player.loading') : audioStore.playing ? t('player.pause') : t('player.play')))
 const isCoverSpinning = computed(() => audioStore.playing && !audioStore.loading)
+const currentCoverSources = computed(() => {
+  const track = audioStore.currentTrack
+  return track ? [track.coverLocal, track.coverRemote].filter(Boolean) as string[] : []
+})
 const progressMax = computed(() => Math.max(duration.value, 1))
 const progressValue = computed({
   get: () => currentTime.value,

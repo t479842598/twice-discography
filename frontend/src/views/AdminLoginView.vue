@@ -24,7 +24,7 @@ import { api, ApiError } from '@/api/client'
 
 const router = useRouter()
 const route = useRoute()
-const email = ref('')
+const email = ref('admin')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -44,8 +44,10 @@ async function submitLogin() {
 
 async function checkExistingLogin() {
   try {
-    await api.adminMe()
-    await router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/admin')
+    const session = await api.adminSession()
+    if (session.user) {
+      await router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/admin')
+    }
   } catch {
     // Not logged in yet.
   }

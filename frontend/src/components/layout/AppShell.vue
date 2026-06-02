@@ -162,7 +162,7 @@ onMounted(async () => {
 
 async function refreshAdminState() {
   try {
-    adminUser.value = (await api.adminMe()).user
+    adminUser.value = (await api.adminSession()).user
   } catch {
     adminUser.value = null
   }

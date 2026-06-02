@@ -46,8 +46,8 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.path.startsWith('/admin') || to.path === '/admin/login') return true
   try {
-    await api.adminMe()
-    return true
+    const session = await api.adminSession()
+    return session.user ? true : { path: '/admin/login', query: { redirect: to.fullPath } }
   } catch {
     return { path: '/admin/login', query: { redirect: to.fullPath } }
   }

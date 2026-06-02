@@ -15,6 +15,7 @@ export interface Album {
   releaseDate: string
   year: number
   coverLocal: string | null
+  coverRemote?: string | null
   title: MultiLangText
   description: MultiLangText
   trackCount: number
@@ -27,6 +28,7 @@ export interface Track {
   albumTitle: MultiLangText | null
   albumReleaseDate: string | null
   coverLocal: string | null
+  coverRemote?: string | null
   year: number | null
   trackNo: number | null
   durationSec: number | null

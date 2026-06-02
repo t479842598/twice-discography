@@ -5,6 +5,7 @@ import { getBiliCredentialStatus, resolveBiliVideoMeta, saveBiliCredential, veri
 import {
   clearAdminSessionCookie,
   ensureDefaultAdmin,
+  getAdminFromRequest,
   hashPassword,
   loginAdmin,
   logoutAdmin,
@@ -20,12 +21,17 @@ function bodyObject(value: unknown) {
 export async function registerAdminRoutes(app: FastifyInstance) {
   await ensureDefaultAdmin()
 
+  app.get('/session', async (request) => {
+    const user = getAdminFromRequest(request)
+    return { user: user ? publicAdminUser(user) : null }
+  })
+
   app.post('/auth/login', async (request, reply) => {
     const body = bodyObject(request.body)
     const email = String(body.email ?? '').trim()
     const password = String(body.password ?? '')
     const result = await loginAdmin(email, password)
-    if (!result) return reply.code(401).send({ error: 'invalid_credentials' })
+    if (!result) return reply.code(401).send({ error: 'invalid_credentials', message: '账号或密码不正确' })
     setAdminSessionCookie(reply, result.session.id, result.session.expiresAt)
     return { user: publicAdminUser(result.user) }
   })

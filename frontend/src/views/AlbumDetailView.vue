@@ -9,10 +9,10 @@
     <n-skeleton v-else text :repeat="4" />
 
     <section v-if="album" class="section album-detail-grid">
-      <img
-        v-if="album.coverLocal"
+      <FallbackImage
+        v-if="coverSources.length"
         class="album-detail-cover"
-        :src="album.coverLocal"
+        :sources="coverSources"
         :alt="`${pickText(album.title, localeStore.locale)} cover`"
         decoding="async"
         fetchpriority="high"
@@ -26,11 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { Album } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
+import FallbackImage from '@/components/common/FallbackImage.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
@@ -40,6 +41,7 @@ const route = useRoute()
 const localeStore = useLocaleStore()
 const { t } = useI18n()
 const album = ref<Album | null>(null)
+const coverSources = computed(() => (album.value ? [album.value.coverLocal, album.value.coverRemote].filter(Boolean) as string[] : []))
 
 async function load() {
   album.value = (await api.album(String(route.params.id))).album
