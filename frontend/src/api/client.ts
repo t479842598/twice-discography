@@ -18,6 +18,7 @@ import type {
 } from './types'
 
 const baseUrl = import.meta.env.VITE_API_BASE || '/api'
+const staticBaseUrl = (import.meta.env.VITE_STATIC_BASE || '/static').replace(/\/$/, '')
 
 export class ApiError extends Error {
   constructor(
@@ -28,6 +29,25 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+function withStaticBase(value: string | null | undefined) {
+  if (!value || /^https?:\/\//i.test(value) || !value.startsWith('/static/')) return value ?? null
+  return `${staticBaseUrl}${value.slice(7)}`
+}
+
+function normalizeStaticUrls<T>(payload: T): T {
+  if (!payload || typeof payload !== 'object') return payload
+  if (Array.isArray(payload)) return payload.map(normalizeStaticUrls) as T
+
+  const record = payload as Record<string, unknown>
+  const normalized: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(record)) {
+    normalized[key] = key === 'coverLocal' || key === 'photoLocal'
+      ? withStaticBase(value as string | null | undefined)
+      : normalizeStaticUrls(value)
+  }
+  return normalized as T
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -48,7 +68,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(payload?.message || payload?.error || 'Request failed', response.status, payload)
   }
 
-  return payload as T
+  return normalizeStaticUrls(payload as T)
 }
 
 export const api = {

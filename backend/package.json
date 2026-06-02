@@ -12,7 +12,8 @@
     "music:warm-r2": "tsx src/scripts/warmMusicR2.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "covers:localize": "tsx src/scripts/localizeAlbumCovers.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

@@ -159,13 +159,26 @@ const memberFullNames: Record<string, { zh: string; en: string; ja: string; ko: 
   tzuyu: { zh: '周子瑜', en: 'Chou Tzu-yu', ja: '周子瑜', ko: '저우쯔위' },
 }
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const initFilename = fileURLToPath(import.meta.url)
+const initDirname = path.dirname(initFilename)
+
+const backendRoot = path.resolve(initDirname, '../..')
+const albumCoverExtensions = ['.webp', '.jpg', '.png', '.avif']
+const staticPrefix = (process.env.STATIC_PREFIX || '/static').replace(/\/$/, '')
+
+function albumCoverLocalPath(albumId: string) {
+  const baseName = albumId.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+  for (const extension of albumCoverExtensions) {
+    const absolutePath = path.join(backendRoot, 'public', 'albums', `${baseName}${extension}`)
+    if (fs.existsSync(absolutePath)) return `${staticPrefix}/albums/${baseName}${extension}`
+  }
+  return null
+}
 
 function readSchema() {
   const candidates = [
-    path.resolve(__dirname, 'schema.sql'),
-    path.resolve(__dirname, '../../src/db/schema.sql'),
+    path.resolve(initDirname, 'schema.sql'),
+    path.resolve(initDirname, '../../src/db/schema.sql'),
   ]
   const schemaPath = candidates.find((candidate) => fs.existsSync(candidate))
   if (!schemaPath) throw new Error('schema.sql not found')
@@ -211,7 +224,7 @@ export function initializeDatabase() {
         bili_bvid: null,
         bili_page: 1,
         ...album,
-        cover_local: album.cover_local ?? null,
+        cover_local: albumCoverLocalPath(album.id) ?? album.cover_local ?? null,
         cover_thumb_local: null,
       })
     }
@@ -396,7 +409,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   closeDatabase()
   console.log(`Seeded TWICE catalog: ${JSON.stringify(result)}`)
 }
-
 
 
 

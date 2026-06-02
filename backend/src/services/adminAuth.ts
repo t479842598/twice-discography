@@ -76,13 +76,35 @@ export function parseCookies(header?: string) {
   return cookies
 }
 
+function hasHttpsFrontendOrigin() {
+  const origins = [process.env.FRONTEND_ORIGIN, process.env.CORS_ORIGIN]
+    .flatMap((value) => value?.split(',') ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  return origins.some((origin) => {
+    try {
+      const url = new URL(origin)
+      return url.protocol === 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1'
+    } catch {
+      return false
+    }
+  })
+}
+
+function adminCookieAttributes() {
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER || hasHttpsFrontendOrigin()) {
+    return 'Path=/; HttpOnly; SameSite=None; Secure'
+  }
+  return 'Path=/; HttpOnly; SameSite=Lax'
+}
+
 export function setAdminSessionCookie(reply: FastifyReply, sessionId: string, expiresAt: number) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
-  reply.header('set-cookie', `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax${secure}; Expires=${new Date(expiresAt).toUTCString()}`)
+  reply.header('set-cookie', `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; ${adminCookieAttributes()}; Expires=${new Date(expiresAt).toUTCString()}`)
 }
 
 export function clearAdminSessionCookie(reply: FastifyReply) {
-  reply.header('set-cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`)
+  reply.header('set-cookie', `${SESSION_COOKIE}=; ${adminCookieAttributes()}; Max-Age=0`)
 }
 
 export function getSessionId(request: FastifyRequest) {
