@@ -1,0 +1,46 @@
+name: Deploy to Windows
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-windows
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Windows]
+
+    env:
+      WINDOWS_DEPLOY_DIR: ${{ vars.WINDOWS_DEPLOY_DIR || 'C:\twice-discography' }}
+      WINDOWS_DEPLOY_PORT: ${{ vars.WINDOWS_DEPLOY_PORT || '3000' }}
+      WINDOWS_DEPLOY_HOST: ${{ vars.WINDOWS_DEPLOY_HOST || '0.0.0.0' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        shell: powershell
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.7.0 --activate
+          pnpm --version
+
+      - name: Deploy on Windows host
+        shell: powershell
+        run: |
+          $port = [int]$env:WINDOWS_DEPLOY_PORT
+          .\scripts\windows\deploy.ps1 `
+            -SourceDir "$env:GITHUB_WORKSPACE" `
+            -DeployDir "$env:WINDOWS_DEPLOY_DIR" `
+            -Port $port `
+            -HostAddress "$env:WINDOWS_DEPLOY_HOST"
