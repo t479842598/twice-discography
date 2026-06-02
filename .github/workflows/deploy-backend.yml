@@ -1,0 +1,74 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pack project
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='frontend/dist' \
+            --exclude='backend/dist' \
+            --exclude='data' \
+            --exclude='.env' \
+            -czf twice-discography.tar.gz .
+
+      - name: Upload package
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: twice-discography.tar.gz
+          target: /www/wwwroot/
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+
+            cd /www/wwwroot
+
+            rm -rf twice-discography-new
+            mkdir -p twice-discography-new
+            tar -xzf twice-discography.tar.gz -C twice-discography-new
+
+            if [ -f twice-discography/.env ]; then
+              cp twice-discography/.env twice-discography-new/.env
+            fi
+
+            mkdir -p twice-discography-new/data
+            if [ -d twice-discography/data ]; then
+              cp -a twice-discography/data/. twice-discography-new/data/
+            fi
+
+            rm -rf twice-discography-backup
+            if [ -d twice-discography ]; then
+              mv twice-discography twice-discography-backup
+            fi
+
+            mv twice-discography-new twice-discography
+
+            cd /www/wwwroot/twice-discography
+            pnpm install --frozen-lockfile --prod=false --registry=https://registry.npmmirror.com
+            pnpm --filter backend build
+            pm2 restart twice-backend
+            pm2 save
