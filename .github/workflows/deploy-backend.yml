@@ -14,10 +14,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Pack project
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prod=false
+
+      - name: Build on GitHub runner
         run: |
-          mkdir -p deploy-package
-          git archive --format=tar.gz --output=deploy-package/twice-discography.tar.gz HEAD
+          pnpm --filter frontend build
+          pnpm --filter backend build
+          cp backend/src/db/schema.sql backend/dist/db/schema.sql
+
+      - name: Pack runtime artifact
+        run: |
+          mkdir -p deploy-runtime/backend deploy-runtime/frontend deploy-package
+          cp package.json pnpm-lock.yaml pnpm-workspace.yaml deploy-runtime/
+          cp backend/package.json deploy-runtime/backend/
+          cp -a backend/dist deploy-runtime/backend/dist
+          cp -a backend/public deploy-runtime/backend/public
+          cp -a frontend/dist deploy-runtime/frontend/dist
+          tar -czf deploy-package/twice-discography.tar.gz -C deploy-runtime .
+          du -h deploy-package/twice-discography.tar.gz
 
       - name: Upload package
         uses: appleboy/scp-action@v0.1.7
@@ -42,29 +69,37 @@ jobs:
 
             cd /www/wwwroot
 
+            APP_DIR=/www/wwwroot/twice-discography
+            NEW_DIR=/www/wwwroot/twice-discography-new
+            BACKUP_DIR=/www/wwwroot/twice-discography-backup
+
             rm -rf twice-discography-new
             mkdir -p twice-discography-new
             tar -xzf twice-discography.tar.gz -C twice-discography-new
 
-            if [ -f twice-discography/.env ]; then
-              cp twice-discography/.env twice-discography-new/.env
+            if [ -f "$APP_DIR/.env" ]; then
+              cp "$APP_DIR/.env" "$NEW_DIR/.env"
             fi
 
-            mkdir -p twice-discography-new/data
-            if [ -d twice-discography/data ]; then
-              cp -a twice-discography/data/. twice-discography-new/data/
+            mkdir -p "$NEW_DIR/data"
+            if [ -d "$APP_DIR/data" ]; then
+              cp -a "$APP_DIR/data/." "$NEW_DIR/data/"
             fi
 
-            rm -rf twice-discography-backup
-            if [ -d twice-discography ]; then
-              mv twice-discography twice-discography-backup
+            cd "$NEW_DIR"
+            corepack enable || true
+            corepack prepare pnpm@9.7.0 --activate || true
+            pnpm --filter backend install --frozen-lockfile --prod --registry=https://registry.npmmirror.com
+
+            cd /www/wwwroot
+            rm -rf "$BACKUP_DIR"
+            if [ -d "$APP_DIR" ]; then
+              mv "$APP_DIR" "$BACKUP_DIR"
             fi
 
-            mv twice-discography-new twice-discography
+            mv "$NEW_DIR" "$APP_DIR"
 
-            cd /www/wwwroot/twice-discography
-            pnpm install --frozen-lockfile --prod=false --registry=https://registry.npmmirror.com
-            pnpm --filter backend build
-            pm2 restart twice-backend
+            cd "$APP_DIR"
+            pm2 restart twice-backend --update-env
             pm2 save
 
