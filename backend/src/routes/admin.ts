@@ -193,12 +193,16 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!requireAdmin(request, reply, ['owner'])) return reply
     const body = bodyObject(request.body)
     const cookie = String(body.cookie ?? '').trim()
-    if (!cookie) return reply.code(400).send({ error: 'missing_cookie' })
+    if (!cookie) return reply.code(400).send({ error: 'missing_cookie', message: '请先粘贴 B站 Cookie' })
     try {
       saveBiliCredential(cookie)
       return getBiliCredentialStatus()
     } catch (error) {
-      return reply.code(400).send({ error: 'credential_save_failed', message: error instanceof Error ? error.message : String(error) })
+      const message = error instanceof Error ? error.message : String(error)
+      if (message === 'missing_bili_credential_encryption_key') {
+        return reply.code(500).send({ error: 'missing_bili_credential_encryption_key', message: '服务端缺少 BILI_CREDENTIAL_ENCRYPTION_KEY 配置' })
+      }
+      return reply.code(400).send({ error: 'credential_save_failed', message })
     }
   })
 

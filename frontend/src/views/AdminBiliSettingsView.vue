@@ -12,7 +12,7 @@
       <n-alert type="warning" :bordered="false">保存前请确认该账号已获得用于本站播放 MV 的授权。建议只粘贴必要 Cookie，并定期更新。</n-alert>
       <n-input v-model:value="cookie" type="textarea" :autosize="{ minRows: 5, maxRows: 9 }" placeholder="SESSDATA=...; bili_jct=...; DedeUserID=..." />
       <div class="admin-actions-row">
-        <n-button type="primary" @click="saveCookie">保存凭证</n-button>
+        <n-button type="primary" :disabled="!cookie.trim()" @click="saveCookie">保存凭证</n-button>
         <n-button secondary @click="verifyCookie">验证凭证</n-button>
       </div>
       <div class="admin-credential-status">
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { api } from '@/api/client'
+import { ApiError, api } from '@/api/client'
 
 const cookie = ref('')
 const message = ref('')
@@ -39,16 +39,30 @@ async function loadStatus() {
 }
 
 async function saveCookie() {
-  await api.adminSaveBiliCredential(cookie.value)
-  cookie.value = ''
-  message.value = '凭证已加密保存'
-  await loadStatus()
+  const trimmedCookie = cookie.value.trim()
+  if (!trimmedCookie) {
+    message.value = '请先粘贴 B站 Cookie'
+    return
+  }
+
+  try {
+    await api.adminSaveBiliCredential(trimmedCookie)
+    cookie.value = ''
+    message.value = '凭证已加密保存'
+    await loadStatus()
+  } catch (error) {
+    message.value = error instanceof ApiError ? `保存失败：${error.message}` : '保存失败，请稍后重试'
+  }
 }
 
 async function verifyCookie() {
-  const result = await api.adminVerifyBiliCredential()
-  message.value = result.message
-  await loadStatus()
+  try {
+    const result = await api.adminVerifyBiliCredential()
+    message.value = result.message
+    await loadStatus()
+  } catch (error) {
+    message.value = error instanceof ApiError ? `验证失败：${error.message}` : '验证失败，请稍后重试'
+  }
 }
 
 onMounted(loadStatus)
