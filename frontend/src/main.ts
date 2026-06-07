@@ -4,6 +4,7 @@ import naive from 'naive-ui'
 import App from './App.vue'
 import { router } from './router'
 import './styles/global.css'
+import './styles/admin.css'
 
 createApp(App).use(createPinia()).use(router).use(naive).mount('#app')
 

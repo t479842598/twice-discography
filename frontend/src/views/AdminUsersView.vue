@@ -1,129 +1,167 @@
 <template>
-  <main class="page admin-page">
-    <section class="page-header">
+  <section class="admin-module admin-users-module">
+    <header class="admin-module-header">
       <div>
-        <span class="eyebrow">Admin</span>
-        <h1>用户与角色管理</h1>
-        <p>角色名称已中文化；系统权限角色保留为“所有者 / 管理员 / 内容编辑”。</p>
+        <span class="admin-module-kicker">{{ t('admin.common.eyebrow') }}</span>
+        <h1>{{ t('admin.users.title') }}</h1>
+        <p>{{ t('admin.users.description') }}</p>
       </div>
-      <RouterLink class="section-toggle" to="/admin">返回后台</RouterLink>
+      <div class="admin-module-metrics">
+        <span><strong>{{ users.length }}</strong>{{ t('admin.users.tab.users') }}</span>
+        <span><strong>{{ roles.length }}</strong>{{ t('admin.users.tab.roles') }}</span>
+      </div>
+    </header>
+
+    <section class="admin-segmented-control" role="tablist" :aria-label="t('admin.users.title')">
+      <button type="button" role="tab" :aria-selected="activePanel === 'users'" :class="{ 'is-active': activePanel === 'users' }" @click="activePanel = 'users'">
+        <n-icon :component="PeopleOutline" />
+        <span>{{ t('admin.users.tab.users') }}</span>
+      </button>
+      <button type="button" role="tab" :aria-selected="activePanel === 'roles'" :class="{ 'is-active': activePanel === 'roles' }" @click="activePanel = 'roles'">
+        <n-icon :component="ShieldCheckmarkOutline" />
+        <span>{{ t('admin.users.tab.roles') }}</span>
+      </button>
     </section>
 
-    <section class="admin-management-tabs">
-      <n-button :type="activePanel === 'users' ? 'primary' : 'default'" secondary @click="activePanel = 'users'">用户管理</n-button>
-      <n-button :type="activePanel === 'roles' ? 'primary' : 'default'" secondary @click="activePanel = 'roles'">角色管理</n-button>
-    </section>
-
-    <section v-if="activePanel === 'users'" class="panel admin-panel">
+    <section v-if="activePanel === 'users'" class="admin-panel">
       <div class="admin-section-title">
         <div>
-          <h2>用户管理</h2>
-          <p>维护后台账号、显示名、角色和登录密码。</p>
+          <h2>{{ t('admin.users.usersTitle') }}</h2>
+          <p>{{ t('admin.users.usersDescription') }}</p>
         </div>
-        <n-button type="primary" @click="openCreateUser">新增管理员</n-button>
+        <n-button type="primary" @click="openCreateUser">
+          <template #icon>
+            <n-icon :component="PersonAddOutline" />
+          </template>
+          {{ t('admin.users.createAdmin') }}
+        </n-button>
       </div>
 
       <div class="admin-table">
         <div class="admin-table-row admin-table-head admin-user-table-row">
-          <span>账号</span>
-          <span>显示名</span>
-          <span>角色</span>
-          <span>操作</span>
+          <span>{{ t('admin.users.column.account') }}</span>
+          <span>{{ t('admin.users.column.displayName') }}</span>
+          <span>{{ t('admin.users.column.roles') }}</span>
+          <span>{{ t('admin.common.actions') }}</span>
         </div>
         <div v-for="user in users" :key="user.id" class="admin-table-row admin-user-table-row">
-          <span>{{ user.email }}</span>
-          <span>{{ user.displayName }}</span>
-          <div class="admin-role-badges">
+          <span class="admin-table-cell admin-account-cell" :data-label="t('admin.users.column.account')">{{ user.email }}</span>
+          <span class="admin-table-cell" :data-label="t('admin.users.column.displayName')">{{ user.displayName }}</span>
+          <div class="admin-table-cell admin-role-badges" :data-label="t('admin.users.column.roles')">
             <span v-for="role in user.roles" :key="role" class="admin-role-chip">{{ roleLabel(role) }}</span>
           </div>
-          <div class="admin-inline-actions">
-            <n-button size="small" type="primary" secondary @click="openEditUser(user)">编辑</n-button>
+          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
+            <n-button size="small" type="primary" secondary @click="openEditUser(user)">
+              <template #icon>
+                <n-icon :component="CreateOutline" />
+              </template>
+              {{ t('admin.common.edit') }}
+            </n-button>
           </div>
         </div>
       </div>
     </section>
 
-    <section v-if="activePanel === 'roles'" class="panel admin-panel">
+    <section v-if="activePanel === 'roles'" class="admin-panel">
       <div class="admin-section-title">
         <div>
-          <h2>角色管理</h2>
-          <p>角色编号用于系统保存，角色名称显示为中文。系统角色不能删除。</p>
+          <h2>{{ t('admin.users.rolesTitle') }}</h2>
+          <p>{{ t('admin.users.rolesDescription') }}</p>
         </div>
+        <n-button type="primary" secondary @click="showRoleForm = !showRoleForm">
+          <template #icon>
+            <n-icon :component="showRoleForm ? ChevronUpOutline : AddOutline" />
+          </template>
+          {{ showRoleForm ? t('admin.users.collapseAdd') : t('admin.users.addRole') }}
+        </n-button>
       </div>
 
-      <div class="admin-role-toolbar">
-        <n-button type="primary" secondary @click="showRoleForm = !showRoleForm">{{ showRoleForm ? '收起添加' : '添加角色' }}</n-button>
-      </div>
-
-      <div v-if="showRoleForm" class="admin-role-form admin-card-form">
-        <n-input v-model:value="newRole.id" placeholder="角色编号，例如 reviewer" />
-        <n-input v-model:value="newRole.label" placeholder="角色名称，例如 内容审核" />
-        <n-button type="primary" @click="createRole">确定添加</n-button>
+      <div v-if="showRoleForm" class="admin-role-form">
+        <n-input v-model:value="newRole.id" :placeholder="t('admin.users.roleIdPlaceholder')" />
+        <n-input v-model:value="newRole.label" :placeholder="t('admin.users.roleLabelPlaceholder')" />
+        <n-button type="primary" @click="createRole">{{ t('admin.users.confirmAddRole') }}</n-button>
       </div>
 
       <div class="admin-table">
         <div class="admin-table-row admin-table-head admin-role-table-row">
-          <span>角色编号</span>
-          <span>角色名称</span>
-          <span>类型</span>
-          <span>操作</span>
+          <span>{{ t('admin.users.column.roleId') }}</span>
+          <span>{{ t('admin.users.column.roleName') }}</span>
+          <span>{{ t('admin.users.column.type') }}</span>
+          <span>{{ t('admin.common.actions') }}</span>
         </div>
         <div v-for="role in roles" :key="role.id" class="admin-table-row admin-role-table-row">
-          <span>{{ role.id }}</span>
-          <n-input v-model:value="role.label" size="small" />
-          <span>{{ role.system ? '系统角色' : '自定义角色' }}</span>
-          <div class="admin-inline-actions">
-            <n-button size="small" type="primary" text @click="saveRole(role)">修改</n-button>
-            <n-button size="small" type="error" text :disabled="role.system" @click="deleteRole(role)">删除</n-button>
+          <span class="admin-table-cell admin-role-id" :data-label="t('admin.users.column.roleId')">{{ role.id }}</span>
+          <div class="admin-table-cell" :data-label="t('admin.users.column.roleName')">
+            <span v-if="role.system" class="admin-role-chip">{{ roleLabel(role.id) }}</span>
+            <n-input v-else v-model:value="role.label" size="small" />
+          </div>
+          <span class="admin-table-cell" :data-label="t('admin.users.column.type')">{{ role.system ? t('admin.users.systemRole') : t('admin.users.customRole') }}</span>
+          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
+            <n-button size="small" type="primary" text @click="saveRole(role)">{{ t('admin.common.saveChanges') }}</n-button>
+            <n-button size="small" type="error" text :disabled="role.system" @click="deleteRole(role)">{{ t('admin.common.delete') }}</n-button>
           </div>
         </div>
       </div>
-
     </section>
 
     <p v-if="message" class="admin-message admin-page-message">{{ message }}</p>
 
-    <n-modal v-model:show="showUserModal" preset="card" class="admin-user-modal" :title="isEditingUser ? '编辑管理员' : '新增管理员'">
+    <n-modal v-model:show="showUserModal" preset="card" class="admin-user-modal" :title="isEditingUser ? t('admin.users.editAdmin') : t('admin.users.newAdmin')">
       <n-form class="admin-dialog-form" label-placement="top" @submit.prevent="submitUserModal">
-        <n-form-item label="账号">
-          <n-input v-model:value="userForm.email" :disabled="isEditingUser" placeholder="请输入账号或邮箱" />
+        <n-form-item :label="t('admin.users.column.account')">
+          <n-input v-model:value="userForm.email" :disabled="isEditingUser" :placeholder="t('admin.users.emailPlaceholder')" />
         </n-form-item>
-        <n-form-item label="显示名">
-          <n-input v-model:value="userForm.displayName" placeholder="请输入显示名" />
+        <n-form-item :label="t('admin.users.column.displayName')">
+          <n-input v-model:value="userForm.displayName" :placeholder="t('admin.users.displayNamePlaceholder')" />
         </n-form-item>
-        <n-form-item :label="isEditingUser ? '修改密码' : '初始密码'">
+        <n-form-item :label="isEditingUser ? t('admin.users.changePassword') : t('admin.users.initialPassword')">
           <n-input
             v-model:value="userForm.password"
             type="password"
             show-password-on="click"
-            :placeholder="isEditingUser ? '留空则不修改密码' : '至少 8 位'"
+            :placeholder="isEditingUser ? t('admin.users.passwordKeepPlaceholder') : t('admin.users.passwordMinPlaceholder')"
           />
         </n-form-item>
-        <n-form-item label="角色">
-          <n-select v-model:value="userForm.roles" multiple :options="roleOptions" placeholder="选择角色" />
+        <n-form-item :label="t('admin.users.column.roles')">
+          <n-select v-model:value="userForm.roles" multiple :options="roleOptions" :placeholder="t('admin.users.rolePlaceholder')" />
         </n-form-item>
         <div class="admin-dialog-actions">
-          <n-button @click="showUserModal = false">取消</n-button>
-          <n-button type="primary" attr-type="submit" :loading="userSaving">{{ isEditingUser ? '保存修改' : '确定新增' }}</n-button>
+          <n-button @click="showUserModal = false">{{ t('admin.common.cancel') }}</n-button>
+          <n-button type="primary" attr-type="submit" :loading="userSaving">{{ isEditingUser ? t('admin.common.saveChanges') : t('admin.users.confirmCreate') }}</n-button>
         </div>
         <p v-if="userFormError" class="admin-error">{{ userFormError }}</p>
       </n-form>
     </n-modal>
-  </main>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import {
+  AddOutline,
+  ChevronUpOutline,
+  CreateOutline,
+  PeopleOutline,
+  PersonAddOutline,
+  ShieldCheckmarkOutline,
+} from '@vicons/ionicons5'
 import { api } from '@/api/client'
 import type { AdminRole, AdminUser } from '@/api/types'
+import { useI18n } from '@/i18n'
+import type { MessageKey } from '@/i18n/messages'
 
+const { t } = useI18n()
 const activePanel = ref<'users' | 'roles'>('users')
 const users = ref<AdminUser[]>([])
 const roles = ref<AdminRole[]>([])
 const message = ref('')
 const showRoleForm = ref(false)
-const roleOptions = computed(() => roles.value.map((role) => ({ label: role.label, value: role.id })))
+const systemRoleLabelKeys: Record<string, MessageKey> = {
+  owner: 'admin.users.role.owner',
+  admin: 'admin.users.role.admin',
+  editor: 'admin.users.role.editor',
+}
+const roleOptions = computed(() => roles.value.map((role) => ({ label: roleLabel(role.id), value: role.id })))
 const newRole = reactive({ id: '', label: '' })
 const showUserModal = ref(false)
 const userSaving = ref(false)
@@ -151,6 +189,8 @@ async function refreshAll() {
 }
 
 function roleLabel(roleId: string) {
+  const systemKey = systemRoleLabelKeys[roleId]
+  if (systemKey) return t(systemKey)
   return roles.value.find((role) => role.id === roleId)?.label || roleId
 }
 
@@ -183,11 +223,11 @@ function openEditUser(user: AdminUser) {
 }
 
 function validateUserForm() {
-  if (!userForm.email.trim()) return '请填写账号'
-  if (!userForm.displayName.trim()) return '请填写显示名'
-  if (!userForm.roles.length) return '请至少选择一个角色'
-  if (!isEditingUser.value && userForm.password.length < 8) return '初始密码至少 8 位'
-  if (isEditingUser.value && userForm.password && userForm.password.length < 8) return '新密码至少 8 位'
+  if (!userForm.email.trim()) return t('admin.users.validation.account')
+  if (!userForm.displayName.trim()) return t('admin.users.validation.displayName')
+  if (!userForm.roles.length) return t('admin.users.validation.roles')
+  if (!isEditingUser.value && userForm.password.length < 8) return t('admin.users.validation.initialPassword')
+  if (isEditingUser.value && userForm.password && userForm.password.length < 8) return t('admin.users.validation.newPassword')
   return ''
 }
 
@@ -211,7 +251,7 @@ async function submitUserModal() {
       const saved = await api.adminUpdateUser(userForm.id, payload)
       const target = users.value.find((user) => user.id === saved.user.id)
       if (target) Object.assign(target, saved.user)
-      message.value = `已保存管理员：${saved.user.displayName}`
+      message.value = t('admin.users.savedAdmin', { name: saved.user.displayName })
     } else {
       await api.adminCreateUser({
         email: userForm.email.trim(),
@@ -219,37 +259,66 @@ async function submitUserModal() {
         password: userForm.password,
         roles: [...userForm.roles],
       })
-      message.value = '管理员已创建'
+      message.value = t('admin.users.adminCreated')
       await loadUsers()
     }
     showUserModal.value = false
-  } catch (error) {
-    userFormError.value = error instanceof Error ? error.message : '保存失败'
+  } catch {
+    userFormError.value = t('admin.common.saveFailed')
   } finally {
     userSaving.value = false
   }
 }
 
 async function createRole() {
-  await api.adminCreateRole({ ...newRole })
-  newRole.id = ''
-  newRole.label = ''
-  showRoleForm.value = false
-  message.value = '角色已添加'
-  await loadRoles()
+  message.value = ''
+  const id = newRole.id.trim()
+  const label = newRole.label.trim()
+  if (!id) {
+    message.value = t('admin.users.validation.roleId')
+    return
+  }
+  if (!label) {
+    message.value = t('admin.users.validation.roleName')
+    return
+  }
+
+  try {
+    await api.adminCreateRole({ id, label })
+    newRole.id = ''
+    newRole.label = ''
+    showRoleForm.value = false
+    message.value = t('admin.users.roleAdded')
+    await loadRoles()
+  } catch {
+    message.value = t('admin.common.saveFailed')
+  }
 }
 
 async function saveRole(role: AdminRole) {
-  const saved = await api.adminUpdateRole(role.id, { label: role.label })
-  Object.assign(role, saved.role)
-  message.value = `已修改角色：${role.label}`
+  if (!role.label.trim()) {
+    message.value = t('admin.users.validation.roleName')
+    return
+  }
+
+  try {
+    const saved = await api.adminUpdateRole(role.id, { label: role.label.trim() })
+    Object.assign(role, saved.role)
+    message.value = t('admin.users.roleSaved', { label: role.label })
+  } catch {
+    message.value = t('admin.common.saveFailed')
+  }
 }
 
 async function deleteRole(role: AdminRole) {
   if (role.system) return
-  await api.adminDeleteRole(role.id)
-  message.value = `已删除角色：${role.label}`
-  await refreshAll()
+  try {
+    await api.adminDeleteRole(role.id)
+    message.value = t('admin.users.roleDeleted', { label: role.label })
+    await refreshAll()
+  } catch {
+    message.value = t('admin.common.saveFailed')
+  }
 }
 
 onMounted(refreshAll)

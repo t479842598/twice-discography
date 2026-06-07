@@ -1,76 +1,126 @@
 <template>
-  <main class="page admin-page">
-    <section class="page-header">
+  <section class="admin-module admin-mvs-module">
+    <header class="admin-module-header">
       <div>
-        <span class="eyebrow">Admin</span>
-        <h1>MV 管理</h1>
-        <p>维护歌曲对应的 B站视频、封面和首页滚动展示。</p>
+        <span class="admin-module-kicker">{{ t('admin.common.eyebrow') }}</span>
+        <h1>{{ t('admin.mvs.title') }}</h1>
+        <p>{{ t('admin.mvs.description') }}</p>
       </div>
-      <RouterLink class="section-toggle" to="/admin">返回后台</RouterLink>
-    </section>
+      <div class="admin-module-summary">
+        <span>{{ t('admin.mvs.total', { total }) }}</span>
+      </div>
+    </header>
 
-    <section class="panel admin-panel">
-      <div class="admin-mv-toolbar">
-        <n-input v-model:value="query" clearable placeholder="搜索歌曲、BVID 或 trackId" @keydown.enter.prevent="searchMvs" />
-        <n-switch v-model:value="titleOnly" @update:value="searchMvs"><template #checked>只看主打曲</template><template #unchecked>全部歌曲</template></n-switch>
-        <n-switch v-model:value="onlyWithMv" @update:value="searchMvs"><template #checked>只看已配置</template><template #unchecked>全部配置状态</template></n-switch>
-        <n-button type="primary" :loading="loading" @click="searchMvs">查询</n-button>
-        <n-button type="primary" secondary :loading="savingAll" @click="saveCurrentPage">保存本页</n-button>
+    <section class="admin-panel">
+      <div class="admin-toolbar admin-mv-toolbar">
+        <n-input v-model:value="query" clearable :placeholder="t('admin.mvs.searchPlaceholder')" @keydown.enter.prevent="searchMvs">
+          <template #prefix>
+            <n-icon :component="SearchOutline" />
+          </template>
+        </n-input>
+        <div class="admin-toolbar-switches">
+          <n-switch v-model:value="titleOnly" @update:value="searchMvs">
+            <template #checked>{{ t('admin.mvs.titleOnly') }}</template>
+            <template #unchecked>{{ t('admin.mvs.allSongs') }}</template>
+          </n-switch>
+          <n-switch v-model:value="onlyWithMv" @update:value="searchMvs">
+            <template #checked>{{ t('admin.mvs.configuredOnly') }}</template>
+            <template #unchecked>{{ t('admin.mvs.allConfigStatus') }}</template>
+          </n-switch>
+        </div>
+        <div class="admin-toolbar-actions">
+          <n-button type="primary" :loading="loading" @click="searchMvs">
+            <template #icon>
+              <n-icon :component="SearchOutline" />
+            </template>
+            {{ t('admin.common.search') }}
+          </n-button>
+          <n-button type="primary" secondary :loading="savingAll" @click="saveCurrentPage">
+            <template #icon>
+              <n-icon :component="SaveOutline" />
+            </template>
+            {{ t('admin.mvs.savePage') }}
+          </n-button>
+        </div>
       </div>
 
       <div class="admin-table admin-mv-table">
         <div class="admin-table-row admin-table-head admin-mv-table-row">
-          <span>歌曲</span>
-          <span>搜索</span>
-          <span>B站链接 / BVID</span>
+          <span>{{ t('admin.mvs.column.song') }}</span>
+          <span>{{ t('admin.mvs.column.search') }}</span>
+          <span>{{ t('admin.mvs.column.biliLink') }}</span>
           <span>P</span>
-          <span>封面</span>
-          <span>首页</span>
-          <span>启用</span>
-          <span>操作</span>
+          <span>{{ t('admin.mvs.column.cover') }}</span>
+          <span>{{ t('admin.mvs.column.home') }}</span>
+          <span>{{ t('admin.mvs.column.enabled') }}</span>
+          <span>{{ t('admin.common.actions') }}</span>
         </div>
         <div v-for="mv in mvs" :key="mv.trackId" class="admin-table-row admin-mv-table-row">
-          <div class="admin-mv-title">
-            <strong>{{ mv.titleZh || mv.titleEn || mv.trackId }}</strong>
-            <small>{{ mv.trackId }} · {{ mv.albumName || '无专辑' }}</small>
+          <div class="admin-table-cell admin-mv-title" :data-label="t('admin.mvs.column.song')">
+            <strong>{{ displayTitle(mv) }}</strong>
+            <small>{{ mv.trackId }} · {{ mv.albumName || t('admin.mvs.noAlbum') }}</small>
           </div>
-          <div class="admin-mv-search-cell">
-            <n-button size="small" secondary tag="a" :href="biliSearchUrl(mv)" target="_blank" rel="noopener noreferrer">B站搜索</n-button>
+          <div class="admin-table-cell admin-mv-search-cell" :data-label="t('admin.mvs.column.search')">
+            <n-button size="small" secondary tag="a" :href="biliSearchUrl(mv)" target="_blank" rel="noopener noreferrer">
+              <template #icon>
+                <n-icon :component="OpenOutline" />
+              </template>
+              {{ t('admin.mvs.biliSearch') }}
+            </n-button>
           </div>
-          <div class="admin-mv-link-cell">
-            <n-input v-model:value="linkInputs[mv.trackId]" size="small" placeholder="粘贴 B站链接自动解析" @keydown.enter.prevent="parseBiliLink(mv)" />
+          <div class="admin-table-cell admin-mv-link-cell" :data-label="t('admin.mvs.column.biliLink')">
+            <n-input v-model:value="linkInputs[mv.trackId]" size="small" :placeholder="t('admin.mvs.linkPlaceholder')" @keydown.enter.prevent="parseBiliLink(mv)">
+              <template #prefix>
+                <n-icon :component="LinkOutline" />
+              </template>
+            </n-input>
             <n-input v-model:value="mv.biliBvid" size="small" placeholder="BVID" />
           </div>
-          <n-input-number v-model:value="mv.biliPage" size="small" :min="1" placeholder="P" />
-          <div class="admin-mv-cover-cell">
-            <img v-if="mv.coverUrl" :src="coverPreviewUrl(mv.coverUrl)" alt="" loading="lazy" decoding="async" />
-            <n-input v-model:value="mv.coverUrl" size="small" placeholder="封面 URL" />
+          <div class="admin-table-cell" data-label="P">
+            <n-input-number v-model:value="mv.biliPage" size="small" :min="1" placeholder="P" />
           </div>
-          <n-switch v-model:value="mv.isHomeFeatured" size="small" />
-          <n-switch v-model:value="mv.enabled" size="small" />
-          <div class="admin-inline-actions">
-            <n-button size="small" secondary :loading="parsingTrackId === mv.trackId" @click="parseBiliLink(mv)">解析</n-button>
-            
+          <div class="admin-table-cell admin-mv-cover-cell" :data-label="t('admin.mvs.column.cover')">
+            <img v-if="mv.coverUrl" :src="coverPreviewUrl(mv.coverUrl)" :alt="displayTitle(mv)" loading="lazy" decoding="async" />
+            <span v-else class="admin-cover-placeholder" aria-hidden="true">
+              <n-icon :component="ImageOutline" />
+            </span>
+            <n-input v-model:value="mv.coverUrl" size="small" :placeholder="t('admin.mvs.coverPlaceholder')" />
+          </div>
+          <div class="admin-table-cell admin-switch-cell" :data-label="t('admin.mvs.column.home')">
+            <n-switch v-model:value="mv.isHomeFeatured" size="small" />
+          </div>
+          <div class="admin-table-cell admin-switch-cell" :data-label="t('admin.mvs.column.enabled')">
+            <n-switch v-model:value="mv.enabled" size="small" />
+          </div>
+          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
+            <n-button size="small" secondary :loading="parsingTrackId === mv.trackId" @click="parseBiliLink(mv)">
+              <template #icon>
+                <n-icon :component="RefreshOutline" />
+              </template>
+              {{ t('admin.mvs.parse') }}
+            </n-button>
           </div>
         </div>
       </div>
 
       <div class="admin-pagination-row">
-        <span>共 {{ total }} 条</span>
+        <span>{{ t('admin.mvs.total', { total }) }}</span>
         <n-pagination v-model:page="page" :page-size="pageSize" :item-count="total" :page-slot="6" @update:page="loadMvs" />
         <n-select v-model:value="pageSize" class="admin-page-size" :options="pageSizeOptions" @update:value="changePageSize" />
       </div>
       <p v-if="message" class="admin-message">{{ message }}</p>
     </section>
-  </main>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ImageOutline, LinkOutline, OpenOutline, RefreshOutline, SaveOutline, SearchOutline } from '@vicons/ionicons5'
 import { api } from '@/api/client'
 import type { AdminMvConfig } from '@/api/types'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const query = ref('')
 const titleOnly = ref(true)
 const onlyWithMv = ref(false)
@@ -84,11 +134,11 @@ const parsingTrackId = ref('')
 const savingAll = ref(false)
 const apiBase = import.meta.env.VITE_API_BASE || '/api'
 const linkInputs = reactive<Record<string, string>>({})
-const pageSizeOptions = [
-  { label: '10 条/页', value: 10 },
-  { label: '20 条/页', value: 20 },
-  { label: '50 条/页', value: 50 },
-]
+const pageSizeOptions = computed(() => [
+  { label: t('admin.mvs.pageSize.10'), value: 10 },
+  { label: t('admin.mvs.pageSize.20'), value: 20 },
+  { label: t('admin.mvs.pageSize.50'), value: 50 },
+])
 
 async function loadMvs() {
   loading.value = true
@@ -99,8 +149,8 @@ async function loadMvs() {
     total.value = result.total
     page.value = result.page
     pageSize.value = result.pageSize
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : '加载失败'
+  } catch {
+    message.value = t('admin.common.loadingFailed')
   } finally {
     loading.value = false
   }
@@ -114,6 +164,10 @@ function searchMvs() {
 function changePageSize() {
   page.value = 1
   void loadMvs()
+}
+
+function displayTitle(mv: AdminMvConfig) {
+  return mv.titleZh || mv.titleEn || mv.trackId
 }
 
 function httpsUrl(value: string) {
@@ -140,7 +194,7 @@ function biliSearchUrl(mv: AdminMvConfig) {
 async function parseBiliLink(mv: AdminMvConfig) {
   const link = linkInputs[mv.trackId]?.trim() || mv.biliBvid || mv.fallbackBiliBvid || ''
   if (!link) {
-    message.value = '请先粘贴 B站链接或填写 BVID'
+    message.value = t('admin.mvs.needLink')
     return
   }
   parsingTrackId.value = mv.trackId
@@ -150,9 +204,9 @@ async function parseBiliLink(mv: AdminMvConfig) {
     mv.biliBvid = meta.biliBvid
     mv.biliPage = meta.biliPage
     if (meta.coverUrl) mv.coverUrl = meta.coverUrl
-    message.value = meta.title ? `已解析：${meta.title}` : `已解析 ${meta.biliBvid}`
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : '解析失败'
+    message.value = meta.title ? t('admin.mvs.parsedTitle', { title: meta.title }) : t('admin.mvs.parsedBvid', { bvid: meta.biliBvid })
+  } catch {
+    message.value = t('admin.mvs.parseFailed')
   } finally {
     parsingTrackId.value = ''
   }
@@ -167,9 +221,9 @@ async function saveCurrentPage() {
       const target = mvs.value.find((mv) => mv.trackId === saved.mv.trackId)
       if (target) Object.assign(target, saved.mv)
     }
-    message.value = `已保存本页 ${savedRows.length} 条`
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : '保存失败'
+    message.value = t('admin.mvs.savedPage', { count: savedRows.length })
+  } catch {
+    message.value = t('admin.common.saveFailed')
   } finally {
     savingAll.value = false
   }

@@ -6,9 +6,9 @@ import { isLocaleCode, localeLabels, setDocumentLocale } from '@/i18n/messages'
 
 const localeMap: Record<string, LocaleCode> = {
   CN: 'zh-CN',
-  TW: 'zh-CN',
-  HK: 'zh-CN',
-  MO: 'zh-CN',
+  TW: 'zh-TW',
+  HK: 'zh-TW',
+  MO: 'zh-TW',
   JP: 'ja-JP',
   KR: 'ko-KR',
 }
@@ -36,7 +36,7 @@ export const useLocaleStore = defineStore('locale', () => {
     try {
       const hint = await api.regionHint()
       country.value = hint.country
-      applyLocale(localeMap[hint.country] || 'zh-CN')
+      applyLocale(isLocaleCode(hint.suggestedLocale) ? hint.suggestedLocale : localeMap[hint.country] || 'zh-CN')
     } catch {
       applyLocale('zh-CN')
     } finally {

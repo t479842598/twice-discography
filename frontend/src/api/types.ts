@@ -1,4 +1,4 @@
-export type LocaleCode = 'zh-CN' | 'en-US' | 'ja-JP' | 'ko-KR'
+export type LocaleCode = 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR'
 
 export interface MultiLangText {
   zh: string
