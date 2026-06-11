@@ -1,7 +1,9 @@
 import type {
+  AdminActivityItem,
   AdminMvConfig,
   AdminMvListResponse,
   AdminRole,
+  AdminStats,
   AdminUser,
   BiliProfile,
   BiliVideoMeta,
@@ -9,6 +11,7 @@ import type {
   CatalogOverview,
   CfSong,
   Cover,
+  HomeFeaturedMv,
   Member,
   MusicCandidate,
   MusicResolveResponse,
@@ -139,5 +142,8 @@ export const api = {
   adminSaveBiliCredential: (cookie: string) => request('/admin/bili-credential', { method: 'PUT', body: JSON.stringify({ cookie }) }),
   adminVerifyBiliCredential: () => request<{ ok: boolean; message: string }>('/admin/bili-credential/verify', { method: 'POST' }),
   mvPlayback: (trackId: string) => request<MvPlaybackResponse>(`/mv/${encodeURIComponent(trackId)}/playback`),
+  homeFeaturedMvs: () => request<{ mvs: HomeFeaturedMv[] }>('/mv/home-featured'),
+  adminStats: () => request<AdminStats>('/admin/stats'),
+  adminRecentActivity: () => request<{ items: AdminActivityItem[] }>('/admin/recent-activity'),
 }
 

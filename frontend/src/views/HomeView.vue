@@ -1,13 +1,43 @@
 <template>
   <main class="page home-page">
-    <section class="home-hero" :class="{ 'is-playing-mv': isHeroMvPlaying }" :style="{ '--hero-image': `url(${activeHeroMv.cover})`, '--hero-aspect': activeHeroMv.aspectRatio }">
+    <!-- 精选 MV 轮播 -->
+    <section v-if="featuredMvs.length > 0" class="home-hero home-hero-carousel" :style="{ '--hero-image': `url(${carouselCovers.current})` }" @mouseenter="pauseCarousel" @mouseleave="resumeCarousel">
+      <div class="home-hero-image" aria-hidden="true" />
+      <div class="home-hero-image home-hero-image--next" :class="{ 'is-visible': carouselCovers.nextVisible }" :style="{ backgroundImage: carouselCovers.nextVisible ? `url(${carouselCovers.next})` : 'none' }" aria-hidden="true" />
+      <div class="home-hero-shade" />
+      <div class="home-hero-content">
+        <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" width="118" height="118" decoding="async" fetchpriority="high" />
+        <p>{{ t('home.heroKicker') }}</p>
+        <h1>{{ pickText(activeCarouselMv.title, localeStore.locale) }}</h1>
+        <p v-if="activeCarouselMv.albumName" class="home-hero-carousel-album">{{ activeCarouselMv.albumName }}</p>
+        <div class="home-hero-actions">
+          <n-button type="primary" size="large" :loading="playingHero" @click="playHeroTrack(activeCarouselMv.trackId)">{{ t('home.playHero') }}</n-button>
+          <n-button class="home-hero-secondary-button" size="large" @click="openCarouselMvPlayer(activeCarouselMv)">{{ t('home.watchMv') }}</n-button>
+        </div>
+      </div>
+      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--left" type="button" :aria-label="t('home.carouselPrev')" @click="carouselPrev">&#8249;</button>
+      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--right" type="button" :aria-label="t('home.carouselNext')" @click="carouselNext">&#8250;</button>
+      <div v-if="featuredMvs.length > 1" class="home-hero-carousel-dots">
+        <button
+          v-for="(mv, idx) in featuredMvs"
+          :key="mv.trackId"
+          class="home-hero-carousel-dot"
+          :class="{ 'is-active': idx === carouselIndex }"
+          :aria-label="`Slide ${idx + 1}`"
+          @click="goToSlide(idx)"
+        />
+      </div>
+    </section>
+
+    <!-- 无精选 MV 时回退到单视频 Hero -->
+    <section v-else class="home-hero" :class="{ 'is-playing-mv': isHeroMvPlaying }" :style="{ '--hero-image': `url(${heroFallbackMv.cover})`, '--hero-aspect': heroFallbackMv.aspectRatio }">
       <div class="home-hero-image" aria-hidden="true" />
       <video
         v-if="!isMobile"
         ref="heroVideoRef"
         class="home-hero-video"
         :class="{ 'is-ready': heroVideoReady }"
-        :poster="activeHeroMv.cover"
+        :poster="heroFallbackMv.cover"
         muted
         loop
         playsinline
@@ -18,32 +48,35 @@
         @playing="heroVideoReady = true"
         @error="heroVideoReady = false"
       >
-        <source :src="activeHeroMv.video" :type="activeHeroMv.type" />
+        <source :src="heroFallbackMv.video" :type="heroFallbackMv.type" />
       </video>
       <video
         v-if="isHeroMvPlaying"
         ref="heroPlayerRef"
         class="home-hero-player"
-        :poster="activeHeroMv.cover"
+        :poster="heroFallbackMv.cover"
         controls
         playsinline
         @ended="stopHeroPlayer"
       >
-        <source :src="activeHeroMv.video" :type="activeHeroMv.type" />
+        <source :src="heroFallbackMv.video" :type="heroFallbackMv.type" />
       </video>
-      <button v-if="isHeroMvPlaying" class="home-hero-player-close" type="button" :aria-label="t('mv.close')" @click="stopHeroPlayer">×</button>
+      <button v-if="isHeroMvPlaying" class="home-hero-player-close" type="button" :aria-label="t('mv.close')" @click="stopHeroPlayer">&#215;</button>
       <div class="home-hero-shade" />
       <div class="home-hero-content">
         <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" width="118" height="118" decoding="async" fetchpriority="high" />
         <p>{{ t('home.heroKicker') }}</p>
-        <h1>{{ activeHeroMv.title }}</h1>
+        <h1>{{ heroFallbackMv.title }}</h1>
         <div class="home-hero-actions">
-          <n-button type="primary" size="large" :loading="playingHero" @click="playHeroTrack">{{ t('home.playHero') }}</n-button>
+          <n-button type="primary" size="large" :loading="playingHero" @click="playHeroTrack(heroFallbackMv.trackId)">{{ t('home.playHero') }}</n-button>
           <n-button v-if="!isHeroMvPlaying" class="home-hero-secondary-button" size="large" @click="openHeroPlayer">{{ t('home.watchMv') }}</n-button>
           <n-button class="home-hero-secondary-button" size="large" secondary @click="$router.push('/albums')">{{ t('home.browseAlbums') }}</n-button>
         </div>
       </div>
     </section>
+
+    <!-- MvPlayer modal -->
+    <MvPlayer :show="mvPlayerShow" :title="mvPlayerTitle" :track-id="mvPlayerTrackId" :bili-bvid="mvPlayerBiliBvid" :bili-page="mvPlayerBiliPage" @update:show="mvPlayerShow = $event" />
 
     <n-grid :cols="statsGridCols" :x-gap="12" :y-gap="12" responsive="screen">
       <n-gi v-for="(value, key) in overview?.stats" :key="key">
@@ -59,7 +92,7 @@
         <h2>{{ t('home.timeline') }}</h2>
         <button v-if="canToggleTimeline" class="section-toggle" type="button" :aria-expanded="!isTimelineCollapsed" @click="isTimelineCollapsed = !isTimelineCollapsed">
           <span>{{ isTimelineCollapsed ? t('home.showAll') : t('home.collapse') }}</span>
-          <span class="section-toggle-icon" :class="{ 'is-open': !isTimelineCollapsed }">⌄</span>
+          <span class="section-toggle-icon" :class="{ 'is-open': !isTimelineCollapsed }">&#8996;</span>
         </button>
       </div>
       <div class="year-timeline">
@@ -100,7 +133,7 @@
         <h2>{{ t('home.featuredAlbums') }}</h2>
         <button v-if="canToggleAlbums" class="section-toggle" type="button" :aria-expanded="!isAlbumsCollapsed" @click="isAlbumsCollapsed = !isAlbumsCollapsed">
           <span>{{ isAlbumsCollapsed ? t('home.showAll') : t('home.collapse') }}</span>
-          <span class="section-toggle-icon" :class="{ 'is-open': !isAlbumsCollapsed }">⌄</span>
+          <span class="section-toggle-icon" :class="{ 'is-open': !isAlbumsCollapsed }">&#8996;</span>
         </button>
       </div>
       <div class="album-grid">
@@ -120,8 +153,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AlbumCard from '@/components/catalog/AlbumCard.vue'
 import TrackList from '@/components/catalog/TrackList.vue'
+import MvPlayer from '@/components/player/MvPlayer.vue'
 import { api } from '@/api/client'
-import type { CatalogOverview, Track } from '@/api/types'
+import type { CatalogOverview, HomeFeaturedMv, Track } from '@/api/types'
 import { useI18n } from '@/i18n'
 import { useAudioStore } from '@/stores/audio'
 import { useCatalogStore } from '@/stores/catalog'
@@ -142,24 +176,47 @@ const isHeroMvPlaying = ref(false)
 const isTimelineCollapsed = ref(true)
 const isAlbumsCollapsed = ref(true)
 const albumPreviewCount = ref(5)
-const heroMvs = [
-  {
-    title: 'ME+YOU',
-    trackId: 'apple-twice-1840284140',
-    cover: 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg',
-    video: import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4',
-    aspectRatio: '16 / 9',
-  },
-]
-const activeHeroMvIndex = ref(0)
-const activeHeroMv = computed(() => {
-  const mv = heroMvs[activeHeroMvIndex.value] || heroMvs[0]
-  return {
-    ...mv,
-    type: mv.video.endsWith('.webm') ? 'video/webm' : 'video/mp4',
-  }
-})
 const isMobile = ref(detectMobile())
+
+// ---- Carousel state ----
+const featuredMvs = ref<HomeFeaturedMv[]>([])
+const carouselIndex = ref(0)
+let carouselTimer: ReturnType<typeof setInterval> | null = null
+const CAROUSEL_INTERVAL_MS = 5000
+
+// ---- MvPlayer modal state ----
+const mvPlayerShow = ref(false)
+const mvPlayerTitle = ref('')
+const mvPlayerTrackId = ref<string | null>(null)
+const mvPlayerBiliBvid = ref<string | null>(null)
+const mvPlayerBiliPage = ref<number | null>(null)
+
+// ---- Fallback hero (no featured MVs) ----
+const heroFallbackCover = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
+const heroFallbackMv = {
+  title: 'ME+YOU',
+  trackId: 'apple-twice-1840284140',
+  cover: heroFallbackCover,
+  video: import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4',
+  aspectRatio: '16 / 9',
+  type: (import.meta.env.VITE_HOME_BG_VIDEO || '/media/me-you-bg.mp4').endsWith('.webm') ? 'video/webm' as const : 'video/mp4' as const,
+}
+
+// ---- Cover proxy helper (for B站 hdslb.com URLs) ----
+const apiBase = import.meta.env.VITE_API_BASE || '/api'
+
+function coverProxyUrl(raw: string | null) {
+  if (!raw) return null
+  const url = raw.replace(/^http:\/\//i, 'https://')
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname.endsWith('.hdslb.com') || parsed.hostname === 'hdslb.com') {
+      return `${apiBase}/mv/cover-proxy?url=${encodeURIComponent(url)}`
+    }
+  } catch { /* passthrough */ }
+  return url
+}
+
 const statKeys = {
   albums: 'stats.albums',
   tracks: 'stats.tracks',
@@ -212,11 +269,101 @@ function yearHotTracks(year: CatalogOverview['years'][number]) {
   return [...titleTracks, ...fallbackTracks].slice(0, 3)
 }
 
+// ---- Carousel logic ----
+
+// crossfade: prev cover stays visible briefly while next fades in
+const carouselPrevIndex = ref(-1)
+let carouselFadeTimer: ReturnType<typeof setTimeout> | null = null
+
+const activeCarouselMv = computed(() => featuredMvs.value[carouselIndex.value] || { trackId: '', title: { zh: '', en: '' }, albumName: null } as HomeFeaturedMv)
+
+const carouselCovers = computed(() => {
+  const current = activeCarouselMv.value
+  const prevMv = carouselPrevIndex.value >= 0 ? featuredMvs.value[carouselPrevIndex.value] : null
+  return {
+    current: coverProxyUrl(current.coverUrl) || heroFallbackCover,
+    next: prevMv ? (coverProxyUrl(prevMv.coverUrl) || heroFallbackCover) : '',
+    nextVisible: prevMv != null,
+  }
+})
+
+function transitionToSlide(idx: number) {
+  if (idx === carouselIndex.value) return
+  // start crossfade: the current slide becomes "prev" layer
+  carouselPrevIndex.value = carouselIndex.value
+  carouselIndex.value = idx
+  // after fade-in completes, hide the prev layer
+  if (carouselFadeTimer != null) clearTimeout(carouselFadeTimer)
+  carouselFadeTimer = setTimeout(() => {
+    carouselPrevIndex.value = -1
+    carouselFadeTimer = null
+  }, 600)
+}
+
+function startCarousel() {
+  stopCarousel()
+  if (featuredMvs.value.length <= 1) return
+  carouselTimer = setInterval(() => {
+    transitionToSlide((carouselIndex.value + 1) % featuredMvs.value.length)
+  }, CAROUSEL_INTERVAL_MS)
+}
+
+function stopCarousel() {
+  if (carouselTimer != null) {
+    clearInterval(carouselTimer)
+    carouselTimer = null
+  }
+  if (carouselFadeTimer != null) {
+    clearTimeout(carouselFadeTimer)
+    carouselFadeTimer = null
+    carouselPrevIndex.value = -1
+  }
+}
+
+function pauseCarousel() {
+  stopCarousel()
+}
+
+function resumeCarousel() {
+  if (featuredMvs.value.length > 1) startCarousel()
+}
+
+function carouselPrev() {
+  const len = featuredMvs.value.length
+  transitionToSlide((carouselIndex.value - 1 + len) % len)
+  resetCarouselTimer()
+}
+
+function carouselNext() {
+  transitionToSlide((carouselIndex.value + 1) % featuredMvs.value.length)
+  resetCarouselTimer()
+}
+
+function goToSlide(idx: number) {
+  transitionToSlide(idx)
+  resetCarouselTimer()
+}
+
+function resetCarouselTimer() {
+  stopCarousel()
+  startCarousel()
+}
+
+function openCarouselMvPlayer(mv: HomeFeaturedMv) {
+  mvPlayerTitle.value = pickText(mv.title, localeStore.locale)
+  mvPlayerTrackId.value = mv.trackId
+  mvPlayerBiliBvid.value = mv.biliBvid
+  mvPlayerBiliPage.value = mv.biliPage
+  mvPlayerShow.value = true
+}
+
+// ---- Fallback hero logic ----
+
 onMounted(() => {
   updateResponsiveState()
   window.addEventListener('resize', updateResponsiveState)
   void catalog.loadOverview()
-  // 移动端不预加载音频
+  void loadFeaturedMvs()
   if (!isMobile.value) {
     void warmHeroTrack()
     void startHeroVideo()
@@ -225,7 +372,18 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateResponsiveState)
+  stopCarousel()
 })
+
+async function loadFeaturedMvs() {
+  try {
+    const result = await api.homeFeaturedMvs()
+    featuredMvs.value = result.mvs.filter((mv) => mv.enabled)
+    if (featuredMvs.value.length > 1) startCarousel()
+  } catch {
+    featuredMvs.value = []
+  }
+}
 
 function updateResponsiveState() {
   isMobile.value = detectMobile()
@@ -273,10 +431,10 @@ function stopHeroPlayer() {
   }
 }
 
-async function playHeroTrack() {
+async function playHeroTrack(trackId: string) {
   playingHero.value = true
   try {
-    const track = heroTrack.value || (await api.track(activeHeroMv.value.trackId)).track
+    const track = heroTrack.value?.id === trackId ? heroTrack.value : (await api.track(trackId)).track
     heroTrack.value = track
     await audioStore.playTrack(track)
   } finally {
@@ -286,11 +444,11 @@ async function playHeroTrack() {
 
 async function warmHeroTrack() {
   try {
-    heroTrack.value = (await api.track(activeHeroMv.value.trackId)).track
+    const trackId = heroFallbackMv.trackId
+    heroTrack.value = (await api.track(trackId)).track
     await audioStore.prefetchTrack(heroTrack.value)
   } catch {
     // The hero stays usable even if music warmup fails.
   }
 }
 </script>
-

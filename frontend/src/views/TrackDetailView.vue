@@ -15,7 +15,7 @@
       v-if="coverSources.length"
       class="track-hero-cover"
       :sources="coverSources"
-      :alt="track ? `${pickText(track.title, localeStore.locale)} cover` : ''"
+      :alt="track ? t('common.coverAlt', { title: pickText(track.title, localeStore.locale) }) : ''"
       decoding="async"
       fetchpriority="high"
     />

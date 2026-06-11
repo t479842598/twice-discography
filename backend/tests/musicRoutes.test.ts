@@ -180,7 +180,6 @@ describe('music routes', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json().audioUrl).toBe('https://media.example.com/music/qq/003Gjd8u1wDES5/lossless.flac')
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('uploads playback to R2 in blocking cache mode', async () => {

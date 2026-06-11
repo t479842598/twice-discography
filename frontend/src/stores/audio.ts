@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/api/client'
 import type { MusicCandidate, PlaybackResponse, Track } from '@/api/types'
+import { translate, type MessageKey } from '@/i18n/messages'
+import { useLocaleStore } from '@/stores/locale'
 
 export type PlayMode = 'sequence' | 'repeat' | 'shuffle'
 
@@ -16,6 +18,7 @@ function playbackKey(trackId: string, source?: string) {
 }
 
 export const useAudioStore = defineStore('audio', () => {
+  const localeStore = useLocaleStore()
   const currentTrack = ref<Track | null>(null)
   const selected = ref<MusicCandidate | null>(null)
   const candidates = ref<MusicCandidate[]>([])
@@ -28,6 +31,10 @@ export const useAudioStore = defineStore('audio', () => {
   const playing = ref(false)
   const error = ref('')
   const failedSources = ref<string[]>([])
+
+  function audioMessage(key: MessageKey) {
+    return translate(localeStore.locale, key)
+  }
 
   function resetFailuresIfTrackChanged(track: Track) {
     if (currentTrack.value?.id !== track.id) failedSources.value = []
@@ -141,7 +148,7 @@ export const useAudioStore = defineStore('audio', () => {
       applyPlayback(data)
       playing.value = false
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '播放解析失败'
+      error.value = err instanceof Error ? err.message : audioMessage('audio.resolveFailed')
       const cachedCandidates = candidateCache.get(track.id)
       if (cachedCandidates) {
         candidates.value = cachedCandidates
@@ -172,7 +179,7 @@ export const useAudioStore = defineStore('audio', () => {
       applyPlayback(data)
       playing.value = true
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '播放失败，正在尝试换源'
+      error.value = err instanceof Error ? err.message : audioMessage('audio.playFailedRetry')
       if (source) markSourceFailed(source)
       await playNextCandidate(track)
     } finally {
@@ -193,7 +200,7 @@ export const useAudioStore = defineStore('audio', () => {
       return
     }
     playing.value = false
-    error.value = '所有可用音源都播放失败了'
+    error.value = audioMessage('audio.allSourcesFailed')
   }
 
   async function handleAudioError() {

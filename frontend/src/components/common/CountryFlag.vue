@@ -2,7 +2,7 @@
   <img
     v-if="flagUrl"
     :src="flagUrl"
-    :alt="`${countryCode} flag`"
+    :alt="t('common.flagAlt', { country: countryCode || '' })"
     :class="['country-flag', sizeClass]"
     loading="lazy"
   />
@@ -11,6 +11,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '@/i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -24,6 +25,7 @@ const props = withDefaults(
     size: 'medium',
   }
 )
+const { t } = useI18n()
 
 const flagUrl = computed(() => {
   if (!props.countryCode) return null

@@ -7,7 +7,7 @@
             v-if="trackCoverSources(track).length"
             class="track-cover"
             :sources="trackCoverSources(track)"
-            :alt="`${pickText(track.title, localeStore.locale)} cover`"
+            :alt="t('common.coverAlt', { title: pickText(track.title, localeStore.locale) })"
             loading="lazy"
             decoding="async"
           />

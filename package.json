@@ -21,6 +21,7 @@
     "optimize-images": "node scripts/optimize-images.mjs",
     "verify-data": "node scripts/verify-data.mjs",
     "export-static": "node scripts/export-static.mjs",
+    "grab-bili-cookie": "node scripts/grab-bili-cookie.mjs",
     "start": "pnpm --filter backend start"
   },
   "engines": {
@@ -28,6 +29,7 @@
     "pnpm": ">=8"
   },
   "devDependencies": {
+    "playwright": "1.60.0",
     "typescript": "^5.5.4"
   },
   "packageManager": "pnpm@9.7.0"

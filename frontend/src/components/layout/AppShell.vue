@@ -68,9 +68,9 @@
           </n-button>
         </n-dropdown>
         <div class="admin-auth-slot">
-          <RouterLink v-if="!adminLoggedIn" class="admin-login-link" to="/admin/login">登录</RouterLink>
+          <RouterLink v-if="!adminLoggedIn" class="admin-login-link" to="/admin/login">{{ t('admin.app.login') }}</RouterLink>
           <n-dropdown v-else trigger="click" :options="adminAccountMenuOptions" @select="handleAdminAccountSelect">
-            <button class="admin-account-button" type="button" :title="`已登录：${adminDisplayName}`">
+            <button class="admin-account-button" type="button" :title="t('admin.app.loggedInTitle', { name: adminDisplayName })">
               <img v-if="adminBiliProfile?.face" class="admin-account-avatar" :src="adminBiliProfile.face" :alt="adminDisplayName" />
               <span v-else class="admin-account-avatar">{{ adminInitial }}</span>
               <span class="admin-account-name">{{ adminDisplayName }}</span>
@@ -90,7 +90,7 @@
     </n-layout-content>
 
     <n-layout-footer bordered class="site-footer">
-      <span>© 2026 t479842598. All rights reserved.</span>
+      <span>{{ t('footer.rights') }}</span>
       <a href="https://github.com/t479842598" target="_blank" rel="noreferrer">GitHub: t479842598</a>
       <span>{{ t('footer.disclaimer') }}</span>
     </n-layout-footer>
@@ -133,19 +133,24 @@ const localeDropdownOptions = computed(() => supportedLocales.map((locale) => ({
   label: localeLabels[locale],
 })))
 const adminLoggedIn = computed(() => Boolean(adminUser.value))
-const adminDisplayName = computed(() => adminBiliProfile.value?.uname || adminUser.value?.displayName || adminUser.value?.email || 'Admin')
+const adminDisplayName = computed(() => adminBiliProfile.value?.uname || localizeAdminDisplayName(adminUser.value?.displayName) || adminUser.value?.email || 'Admin')
 const adminInitial = computed(() => adminDisplayName.value.trim().slice(0, 1).toUpperCase() || 'A')
 const adminAccountMenuOptions = computed<DropdownOption[]>(() => {
   const canManageUsers = adminUser.value?.roles.includes('owner')
   return [
-    { key: 'admin-summary', label: `当前账号：${adminDisplayName.value}`, disabled: true },
-    { key: 'admin', label: '管理后台' },
-    { key: 'admin-mvs', label: 'MV 管理' },
-    { key: 'admin-bili', label: 'B站凭证' },
-    ...(canManageUsers ? [{ key: 'admin-users', label: '用户与角色' } as DropdownOption] : []),
-    { key: 'logout', label: '退出登录' },
+    { key: 'admin-summary', label: t('admin.menu.currentAccount', { name: adminDisplayName.value }), disabled: true },
+    { key: 'admin', label: t('admin.menu.dashboard') },
+    { key: 'admin-mvs', label: t('admin.menu.mvs') },
+    { key: 'admin-bili', label: t('admin.menu.bili') },
+    ...(canManageUsers ? [{ key: 'admin-users', label: t('admin.menu.users') } as DropdownOption] : []),
+    { key: 'logout', label: t('admin.menu.logout') },
   ]
 })
+
+function localizeAdminDisplayName(value: string | undefined) {
+  if (!value) return ''
+  return value === '默认管理员' ? t('admin.users.defaultAdmin') : value
+}
 
 onMounted(async () => {
   isMobile.value = detectMobile()
@@ -173,7 +178,6 @@ async function refreshAdminState() {
     }
   } catch {
     adminUser.value = null
-  adminBiliProfile.value = null
     adminBiliProfile.value = null
   }
 }

@@ -132,8 +132,7 @@ function qualityLabel(candidate: MusicCandidate) {
 }
 
 function friendlyError(error: unknown) {
-  if (error instanceof ApiError) return error.message
-  return error instanceof Error ? error.message : t('musicStation.error')
+  return error instanceof ApiError && error.status === 404 ? t('musicStation.unavailableExact') : t('musicStation.error')
 }
 
 async function runSearch() {

@@ -54,7 +54,7 @@ import { useI18n } from '@/i18n'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const email = ref('admin')
+const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')

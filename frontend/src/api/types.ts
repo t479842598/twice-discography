@@ -238,3 +238,32 @@ export interface MvPlaybackResponse {
   fallbackIframeUrl: string
   message: string
 }
+
+export interface HomeFeaturedMv {
+  trackId: string
+  title: MultiLangText
+  albumName: string | null
+  biliBvid: string | null
+  biliPage: number
+  ytVideoId: string | null
+  coverUrl: string | null
+  aspectRatio: string
+  isHomeFeatured: boolean
+  sortOrder: number
+  enabled: boolean
+}
+
+export interface AdminStats {
+  catalog: { albums: number; tracks: number; members: number; cfs: number; covers: number }
+  mvs: { pending: number; homeFeatured: number }
+  admins: number
+  r2Cache: { readyAssets: number; totalBytes: number }
+  biliCredential: { configured: boolean; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null }
+}
+
+export interface AdminActivityItem {
+  type: string
+  title: string
+  description: string
+  time: number
+}

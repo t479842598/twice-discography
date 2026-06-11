@@ -13,7 +13,7 @@
         v-if="coverSources.length"
         class="album-detail-cover"
         :sources="coverSources"
-        :alt="`${pickText(album.title, localeStore.locale)} cover`"
+        :alt="t('common.coverAlt', { title: pickText(album.title, localeStore.locale) })"
         decoding="async"
         fetchpriority="high"
       />

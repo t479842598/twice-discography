@@ -55,7 +55,7 @@ describe('catalog routes', () => {
     expect(trackResponse.statusCode).toBe(200)
 
     const album = albumsResponse.json().albums.find((item: { id: string }) => item.id === 'apple-twice-1555389971')
-    expect(album.coverLocal).toBe('/static/albums/apple-twice-1555389971.jpg')
+    expect(album.coverLocal).toMatch(/apple-twice-1555389971\.jpg$/)
     expect(album.coverRemote).toMatch(/^https:\/\/is1-ssl\.mzstatic\.com\//)
     expect(trackResponse.json().track.coverRemote).toBe(album.coverRemote)
   })

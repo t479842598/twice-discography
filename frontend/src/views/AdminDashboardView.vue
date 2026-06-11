@@ -104,7 +104,7 @@
                 </div>
               </div>
               <ol class="admin-activity-list">
-                <li v-for="item in activityItems" :key="item.title">
+                <li v-for="item in activityList" :key="item.title">
                   <span>{{ item.time }}</span>
                   <div>
                     <strong>{{ item.title }}</strong>
@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   AlbumsOutline,
@@ -180,6 +180,8 @@ import {
 import AdminBiliSettingsView from './AdminBiliSettingsView.vue'
 import AdminMvsView from './AdminMvsView.vue'
 import AdminUsersView from './AdminUsersView.vue'
+import { api } from '@/api/client'
+import type { AdminActivityItem, AdminStats } from '@/api/types'
 import { useI18n } from '@/i18n'
 
 type AdminTab = 'overview' | 'media' | 'content' | 'playback' | 'access'
@@ -205,30 +207,79 @@ const adminTabs = computed<Array<{ name: AdminTab; label: string; tone: Tone; ic
   { name: 'access', label: t('admin.dashboard.tab.access'), tone: 'access', icon: PeopleOutline },
 ])
 
-const healthItems = computed(() => [
-  t('admin.dashboard.workbench.status.media'),
-  t('admin.dashboard.workbench.status.playback'),
-  t('admin.dashboard.workbench.status.access'),
-])
+const stats = ref<AdminStats | null>(null)
+const activityItems = ref<AdminActivityItem[]>([])
 
-const kpiCards = computed<Array<{ title: string; value: string; description: string; tone: Tone; icon: IconComponent }>>(() => [
-  { title: t('admin.dashboard.workbench.kpi.pendingMvs.title'), value: '12', description: t('admin.dashboard.workbench.kpi.pendingMvs.description'), tone: 'warning', icon: VideocamOutline },
-  { title: t('admin.dashboard.workbench.kpi.authorization.title'), value: '98%', description: t('admin.dashboard.workbench.kpi.authorization.description'), tone: 'success', icon: ShieldCheckmarkOutline },
-  { title: t('admin.dashboard.workbench.kpi.homeContent.title'), value: '6', description: t('admin.dashboard.workbench.kpi.homeContent.description'), tone: 'content', icon: LayersOutline },
-  { title: t('admin.dashboard.workbench.kpi.adminAccounts.title'), value: '4', description: t('admin.dashboard.workbench.kpi.adminAccounts.description'), tone: 'access', icon: PeopleOutline },
-])
+onMounted(async () => {
+  const [s, a] = await Promise.all([
+    api.adminStats().catch(() => null),
+    api.adminRecentActivity().catch(() => ({ items: [] })),
+  ])
+  stats.value = s
+  activityItems.value = a.items
+})
 
-const priorityItems = computed<Array<{ index: string; tab: AdminTab; tone: Tone; title: string; description: string; action: string }>>(() => [
-  { index: '01', tab: 'media', tone: 'media', title: t('admin.dashboard.workbench.priority.checkInvalidMvs'), description: t('admin.dashboard.workbench.priority.checkInvalidMvsDescription'), action: t('admin.dashboard.workbench.action.enterMedia') },
-  { index: '02', tab: 'playback', tone: 'playback', title: t('admin.dashboard.workbench.priority.verifyCookie'), description: t('admin.dashboard.workbench.priority.verifyCookieDescription'), action: t('admin.dashboard.workbench.action.verifyPlayback') },
-  { index: '03', tab: 'content', tone: 'content', title: t('admin.dashboard.workbench.priority.reviewHomeOrder'), description: t('admin.dashboard.workbench.priority.reviewHomeOrderDescription'), action: t('admin.dashboard.workbench.action.reviewContent') },
-])
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
 
-const activityItems = computed<Array<{ time: string; title: string; description: string }>>(() => [
-  { time: t('admin.dashboard.workbench.activity.time.now'), title: t('admin.dashboard.workbench.activity.mediaUpdated'), description: t('admin.dashboard.workbench.activity.mediaUpdatedDescription') },
-  { time: t('admin.dashboard.workbench.activity.time.today'), title: t('admin.dashboard.workbench.activity.cookieVerified'), description: t('admin.dashboard.workbench.activity.cookieVerifiedDescription') },
-  { time: t('admin.dashboard.workbench.activity.time.week'), title: t('admin.dashboard.workbench.activity.adminChanged'), description: t('admin.dashboard.workbench.activity.adminChangedDescription') },
-])
+function activityTime(ts: number) {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return t('admin.dashboard.workbench.activity.time.now')
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
+  return new Date(ts).toLocaleDateString()
+}
+
+function activityTitle(item: AdminActivityItem) {
+  return item.title
+}
+
+function activityDescription(item: AdminActivityItem) {
+  return item.description
+}
+
+const healthItems = computed(() => {
+  const items = [t('admin.dashboard.workbench.status.media')]
+  if (stats.value) {
+    items.push(t('admin.dashboard.workbench.status.playback'), t('admin.dashboard.workbench.status.access'))
+  }
+  return items
+})
+
+const kpiCards = computed<Array<{ title: string; value: string; description: string; tone: Tone; icon: IconComponent }>>(() => {
+  const s = stats.value
+  return [
+    { title: t('admin.dashboard.workbench.kpi.pendingMvs.title'), value: s ? String(s.mvs.pending) : '...', description: t('admin.dashboard.workbench.kpi.pendingMvs.description'), tone: 'warning' as Tone, icon: VideocamOutline },
+    { title: t('admin.dashboard.workbench.kpi.r2Cached.title'), value: s ? formatBytes(s.r2Cache.totalBytes) : '...', description: `${s?.r2Cache.readyAssets ?? '...'} 个文件`, tone: 'success' as Tone, icon: ShieldCheckmarkOutline },
+    { title: t('admin.dashboard.workbench.kpi.homeContent.title'), value: s ? String(s.mvs.homeFeatured) : '...', description: t('admin.dashboard.workbench.kpi.homeContent.description'), tone: 'content' as Tone, icon: LayersOutline },
+    { title: t('admin.dashboard.workbench.kpi.adminAccounts.title'), value: s ? String(s.admins) : '...', description: t('admin.dashboard.workbench.kpi.adminAccounts.description'), tone: 'access' as Tone, icon: PeopleOutline },
+  ]
+})
+
+const priorityItems = computed<Array<{ index: string; tab: AdminTab; tone: Tone; title: string; description: string; action: string }>>(() => {
+  const s = stats.value
+  const pendingCount = s ? s.mvs.pending : '...'
+  const biliOk = s?.biliCredential.configured && s.biliCredential.lastVerifyStatus === 'ok'
+  return [
+    { index: '01', tab: 'media' as AdminTab, tone: 'media' as Tone, title: `${t('admin.dashboard.workbench.priority.checkInvalidMvs')} (${pendingCount})`, description: t('admin.dashboard.workbench.priority.checkInvalidMvsDescription'), action: t('admin.dashboard.workbench.action.enterMedia') },
+    { index: '02', tab: 'playback' as AdminTab, tone: 'playback' as Tone, title: biliOk ? t('admin.dashboard.workbench.priority.cookieOk') : t('admin.dashboard.workbench.priority.verifyCookie'), description: biliOk ? t('admin.dashboard.workbench.priority.cookieOkDescription') : t('admin.dashboard.workbench.priority.verifyCookieDescription'), action: t('admin.dashboard.workbench.action.verifyPlayback') },
+    { index: '03', tab: 'content' as AdminTab, tone: 'content' as Tone, title: t('admin.dashboard.workbench.priority.reviewHomeOrder'), description: t('admin.dashboard.workbench.priority.reviewHomeOrderDescription'), action: t('admin.dashboard.workbench.action.reviewContent') },
+  ]
+})
+
+const activityList = computed<Array<{ time: string; title: string; description: string }>>(() => {
+  if (!activityItems.value.length) {
+    return [{ time: '—', title: t('admin.dashboard.workbench.activity.empty'), description: t('admin.dashboard.workbench.activity.emptyDescription') }]
+  }
+  return activityItems.value.map((item) => ({
+    time: activityTime(item.time),
+    title: activityTitle(item),
+    description: activityDescription(item),
+  }))
+})
 
 const quickEntries = computed<Array<{ tab: AdminTab; icon: IconComponent; tone: Tone; meta: string; title: string; description: string }>>(() => [
   { tab: 'media', icon: VideocamOutline, tone: 'media', meta: t('admin.dashboard.workbench.modules.mediaMeta'), title: t('admin.dashboard.entry.media.title'), description: t('admin.dashboard.entry.media.description') },

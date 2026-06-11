@@ -1,6 +1,6 @@
 <template>
   <main class="page">
-    <PageHeader :eyebrow="`${year} Timeline`" :title="t('year.title', { year })" :description="yearDescription" />
+    <PageHeader :eyebrow="t('year.timelineEyebrow', { year })" :title="t('year.title', { year })" :description="yearDescription" />
 
     <section class="section">
       <h2>{{ t('year.albums') }}</h2>

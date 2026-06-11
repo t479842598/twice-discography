@@ -205,7 +205,8 @@ export function getTrack(id: string) {
       albums.name_ko AS album_name_ko,
       albums.name_romanized AS album_name_romanized,
       albums.release_date AS album_release_date,
-      albums.cover_local AS album_cover_local
+      albums.cover_local AS album_cover_local,
+      albums.cover_remote AS album_cover_remote
     FROM tracks
     LEFT JOIN albums ON albums.id = tracks.album_id
     WHERE tracks.id = ?

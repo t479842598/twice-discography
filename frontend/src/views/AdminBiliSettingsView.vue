@@ -22,6 +22,37 @@
           <n-icon class="admin-section-icon" :component="KeyOutline" />
         </div>
 
+        <div class="admin-bili-bookmarklet">
+          <p class="admin-bili-bookmarklet-hint">{{ t('admin.bili.bookmarkletHint') }}</p>
+          <div class="admin-bili-bookmarklet-row">
+            <span>{{ t('admin.bili.dragThis') }}</span>
+            <a
+              class="admin-bili-bookmarklet-link"
+              :href="bookmarkletCode"
+              @click.prevent
+            >{{ t('admin.bili.getCookie') }}</a>
+          </div>
+          <p class="admin-bili-bookmarklet-desc">
+            <n-icon :component="InformationCircleOutline" />
+            {{ t('admin.bili.bookmarkletDesc') }}
+          </p>
+        </div>
+
+        <div class="admin-bili-bookmarklet">
+          <p class="admin-bili-bookmarklet-hint">💻 {{ t('admin.bili.cliHint') }}</p>
+          <div class="admin-bili-bookmarklet-row">
+            <code class="admin-bili-cli-cmd">pnpm run grab-bili-cookie</code>
+            <n-button size="small" type="primary" @click="copyCliCmd">
+              <template #icon><n-icon :component="CopyOutline" /></template>
+              {{ t('admin.bili.copyCmd') }}
+            </n-button>
+          </div>
+          <p class="admin-bili-bookmarklet-desc">
+            <n-icon :component="InformationCircleOutline" />
+            {{ t('admin.bili.cliDesc') }}
+          </p>
+        </div>
+
         <n-input
           v-model:value="cookie"
           class="admin-cookie-input"
@@ -65,7 +96,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AlertCircleOutline, KeyOutline, RefreshOutline, SaveOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
+import { AlertCircleOutline, CopyOutline, InformationCircleOutline, KeyOutline, RefreshOutline, SaveOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
 import { ApiError, api } from '@/api/client'
 import { useI18n } from '@/i18n'
 import type { MessageKey } from '@/i18n/messages'
@@ -74,6 +105,10 @@ const { t } = useI18n()
 const cookie = ref('')
 const message = ref('')
 const status = ref<{ configured: boolean; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null } | null>(null)
+
+const bookmarkletJs = `javascript:(function(){var d=document;if(!d.URL.includes('bilibili.com')){alert('${t('admin.bili.bookmarkletWrongSite')}');return}var c=d.cookie;if(!c){alert('${t('admin.bili.bookmarkletNoCookie')}');return}navigator.clipboard.writeText(c).then(function(){alert('${t('admin.bili.bookmarkletCopied')}')}).catch(function(){prompt('${t('admin.bili.bookmarkletCopyManual')}',c)})})()`
+const bookmarkletCode = encodeURI(bookmarkletJs.trim().replace(/\s+/g, ' '))
+
 const biliMessageKeys: Record<string, MessageKey> = {
   ok: 'admin.bili.status.ok',
   failed: 'admin.bili.status.failed',
@@ -136,6 +171,16 @@ function localizeBiliMessage(value: string | null | undefined) {
   }
 
   return value
+}
+
+async function copyCliCmd() {
+  try {
+    await navigator.clipboard.writeText('pnpm run grab-bili-cookie')
+    message.value = t('admin.bili.cmdCopied')
+    setTimeout(() => { message.value = '' }, 3000)
+  } catch {
+    message.value = '复制失败，请手动复制'
+  }
 }
 
 onMounted(loadStatus)

@@ -57,8 +57,17 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { api } from '@/api/client'
 import { useI18n } from '@/i18n'
+import type { MessageKey } from '@/i18n/messages'
 
 const { t } = useI18n()
+const playbackReasonKeys: Record<string, MessageKey> = {
+  'B站凭证未配置': 'mv.proxy.reason.notConfigured',
+  bili_credential_not_configured: 'mv.proxy.reason.notConfigured',
+  mv_proxy_not_configured: 'mv.proxy.reason.proxyNotConfigured',
+  bili_playurl_empty: 'mv.proxy.reason.playurlEmpty',
+  bili_view_failed: 'mv.proxy.reason.viewFailed',
+  bili_playurl_failed: 'mv.proxy.reason.playurlFailed',
+}
 
 const props = defineProps<{
   show: boolean
@@ -119,14 +128,14 @@ watch(
         fallbackBiliIframeUrl.value = playback.fallbackIframeUrl
         if (playback.videoUrl) {
           proxyVideoUrl.value = playback.videoUrl
-          playbackMessage.value = playback.quality ? `已启用高清播放，清晰度代码 ${playback.quality}` : '已启用高清播放'
+          playbackMessage.value = playback.quality ? t('mv.proxyReadyQuality', { quality: playback.quality }) : t('mv.proxyReady')
           await nextTick()
           if (!isMobile.value) void videoRef.value?.play().catch(() => undefined)
         } else if (playback.message && playback.message !== 'ok') {
-          playbackMessage.value = `高清解析失败，已回退 B站播放器：${playback.message}`
+          playbackMessage.value = t('mv.proxyFallbackMessage', { message: localizePlaybackReason(playback.message) })
         }
       } catch {
-        playbackMessage.value = '高清解析失败，已回退 B站播放器'
+        playbackMessage.value = t('mv.proxyFallback')
       }
     }
     setTimeout(() => {
@@ -145,6 +154,11 @@ function stopVideo() {
   fallbackBiliIframeUrl.value = ''
   playbackMessage.value = ''
   videoLoaded.value = false
+}
+
+function localizePlaybackReason(value: string) {
+  const key = playbackReasonKeys[value]
+  return key ? t(key) : value
 }
 </script>
 

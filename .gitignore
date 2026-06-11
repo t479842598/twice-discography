@@ -15,6 +15,7 @@ static-export/
 .env.local
 .env.*.local
 !.env.example
+temp_cookies.txt
 
 # Database
 *.db

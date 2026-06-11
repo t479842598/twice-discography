@@ -4,7 +4,7 @@
       <FallbackImage
         v-if="hasCover"
         :sources="coverSources"
-        :alt="`${pickText(album.title, localeStore.locale)} cover`"
+        :alt="t('common.coverAlt', { title: pickText(album.title, localeStore.locale) })"
         loading="lazy"
         decoding="async"
       />
