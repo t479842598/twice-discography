@@ -16,7 +16,7 @@ jobs:
 
     env:
       WINDOWS_DEPLOY_DIR: ${{ vars.WINDOWS_DEPLOY_DIR || 'C:\twice-discography' }}
-      WINDOWS_DEPLOY_PORT: ${{ vars.WINDOWS_DEPLOY_PORT || '10009' }}
+      WINDOWS_DEPLOY_PORT: '10009'
       WINDOWS_DEPLOY_HOST: ${{ vars.WINDOWS_DEPLOY_HOST || '0.0.0.0' }}
 
     steps:
@@ -39,6 +39,9 @@ jobs:
         shell: powershell
         run: |
           $port = [int]$env:WINDOWS_DEPLOY_PORT
+          Write-Host "Windows deploy dir: $env:WINDOWS_DEPLOY_DIR"
+          Write-Host "Windows deploy host: $env:WINDOWS_DEPLOY_HOST"
+          Write-Host "Windows deploy port: $port"
           .\scripts\windows\deploy.ps1 `
             -SourceDir "$env:GITHUB_WORKSPACE" `
             -DeployDir "$env:WINDOWS_DEPLOY_DIR" `

@@ -112,6 +112,8 @@ $env:VITE_API_BASE = "/api"
 $env:VITE_STATIC_BASE = "/static"
 if ($BackendOnly) {
   $env:SERVE_FRONTEND = "false"
+} else {
+  $env:SERVE_FRONTEND = "true"
 }
 
 if (-not $SkipBuild) {
@@ -133,6 +135,8 @@ if (-not (Test-Path $DatabasePath)) {
 $ServeFrontendAssignment = ""
 if ($BackendOnly) {
   $ServeFrontendAssignment = '$env:SERVE_FRONTEND = "false"'
+} else {
+  $ServeFrontendAssignment = '$env:SERVE_FRONTEND = "true"'
 }
 
 @"
