@@ -16,7 +16,7 @@ jobs:
 
     env:
       WINDOWS_DEPLOY_DIR: ${{ vars.WINDOWS_DEPLOY_DIR || 'C:\twice-discography' }}
-      WINDOWS_DEPLOY_PORT: ${{ vars.WINDOWS_DEPLOY_PORT || '3000' }}
+      WINDOWS_DEPLOY_PORT: ${{ vars.WINDOWS_DEPLOY_PORT || '10009' }}
       WINDOWS_DEPLOY_HOST: ${{ vars.WINDOWS_DEPLOY_HOST || '0.0.0.0' }}
 
     steps:
