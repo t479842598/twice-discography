@@ -13,6 +13,48 @@ function Resolve-FullPath([string]$Path) {
   return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Assert-SafeRecursivePath([string]$Path) {
+  $FullPath = Resolve-FullPath $Path
+  $Root = [System.IO.Path]::GetPathRoot($FullPath)
+  if ($FullPath.TrimEnd('\') -eq $Root.TrimEnd('\')) {
+    throw "Refusing to recursively remove drive root: $FullPath"
+  }
+
+  return $FullPath
+}
+
+function Remove-TreeWithRetry([string]$Path, [switch]$BestEffort) {
+  $FullPath = Assert-SafeRecursivePath $Path
+  if (-not (Test-Path -LiteralPath $FullPath)) {
+    return
+  }
+
+  $LastError = $null
+  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
+    try {
+      Remove-Item -LiteralPath $FullPath -Recurse -Force -ErrorAction Stop
+      return
+    } catch {
+      $LastError = $_.Exception.Message
+      if ($Attempt -lt 3) {
+        Start-Sleep -Seconds $Attempt
+      }
+    }
+  }
+
+  $Message = "Failed to remove $FullPath after retries: $LastError"
+  if ($BestEffort) {
+    Write-Warning $Message
+    return
+  }
+
+  throw $Message
+}
+
+function New-BackupPath([string]$BasePath) {
+  return "{0}-backup-{1}-{2}" -f $BasePath, (Get-Date -Format "yyyyMMddHHmmss"), $PID
+}
+
 function Invoke-RobocopyMirror([string]$From, [string]$To) {
   New-Item -ItemType Directory -Force $To | Out-Null
 
@@ -25,7 +67,7 @@ function Invoke-RobocopyMirror([string]$From, [string]$To) {
     "/NFL",
     "/NDL",
     "/NP",
-    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist", "data",
+    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist", (Join-Path $From "data"),
     "/XF", ".env"
   )
 
@@ -45,7 +87,8 @@ function Copy-IfExists([string]$From, [string]$To) {
 $SourceDir = Resolve-FullPath $SourceDir
 $DeployDir = Resolve-FullPath $DeployDir
 $NewDir = "$DeployDir-new"
-$BackupDir = "$DeployDir-backup"
+$LegacyBackupDir = "$DeployDir-backup"
+$BackupDir = New-BackupPath $DeployDir
 
 if (-not (Test-Path $SourceDir)) {
   throw "SourceDir does not exist: $SourceDir"
@@ -57,9 +100,10 @@ if ($DeployDir -eq $SourceDir) {
 
 Write-Host "Deploy source: $SourceDir"
 Write-Host "Deploy target: $DeployDir"
+Write-Host "Deploy backup: $BackupDir"
 
 if (Test-Path $NewDir) {
-  Remove-Item $NewDir -Recurse -Force
+  Remove-TreeWithRetry $NewDir
 }
 
 Invoke-RobocopyMirror -From $SourceDir -To $NewDir
@@ -85,15 +129,11 @@ if (Test-Path $OldStopScript) {
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $OldStopScript -Port $Port
 }
 
-if (Test-Path $BackupDir) {
-  Remove-Item $BackupDir -Recurse -Force
-}
-
 if (Test-Path $DeployDir) {
-  Move-Item $DeployDir $BackupDir
+  Move-Item -LiteralPath $DeployDir -Destination $BackupDir
 }
 
-Move-Item $NewDir $DeployDir
+Move-Item -LiteralPath $NewDir -Destination $DeployDir
 
 try {
   Set-Location $DeployDir
@@ -103,15 +143,20 @@ try {
     corepack prepare pnpm@9.7.0 --activate
   }
 
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $DeployDir "scripts\windows\start.ps1") -Port $Port -HostAddress $HostAddress
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $DeployDir "scripts\windows\start.ps1") -Port $Port -HostAddress $HostAddress -BackendOnly
+  if ($LASTEXITCODE -ne 0) {
+    throw "start.ps1 failed with exit code $LASTEXITCODE"
+  }
 
-  if (-not $KeepBackup -and (Test-Path $BackupDir)) {
-    Remove-Item $BackupDir -Recurse -Force
+  if (-not $KeepBackup) {
+    foreach ($CleanupPath in @($BackupDir, $LegacyBackupDir) | Select-Object -Unique) {
+      Remove-TreeWithRetry -Path $CleanupPath -BestEffort
+    }
   }
 
   Write-Host "Deployment finished successfully."
 } catch {
-  Write-Error "Deployment failed: $($_.Exception.Message)"
+  Write-Warning "Deployment failed: $($_.Exception.Message)"
 
   $CurrentStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
   if (Test-Path $CurrentStopScript) {
@@ -119,13 +164,14 @@ try {
   }
 
   if (Test-Path $DeployDir) {
-    Remove-Item $DeployDir -Recurse -Force
+    Remove-TreeWithRetry $DeployDir
   }
 
   if (Test-Path $BackupDir) {
-    Move-Item $BackupDir $DeployDir
+    Move-Item -LiteralPath $BackupDir -Destination $DeployDir
     $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
     if (Test-Path $RollbackStartScript) {
+      $env:SERVE_FRONTEND = "false"
       & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RollbackStartScript -Port $Port -HostAddress $HostAddress -SkipInstall -SkipBuild
     }
   }

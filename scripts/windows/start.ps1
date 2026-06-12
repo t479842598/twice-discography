@@ -3,7 +3,8 @@ param(
   [int]$Port = 3000,
   [string]$HostAddress = "0.0.0.0",
   [switch]$SkipInstall,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  [switch]$BackendOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,6 +22,13 @@ function Ensure-Command($Name, $InstallHint) {
   }
 
   throw "$Name is not installed or not available in PATH. $InstallHint"
+}
+
+function Invoke-CheckedCommand([scriptblock]$Command) {
+  & $Command
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code ${LASTEXITCODE}: $Command"
+  }
 }
 
 function Resolve-BackendDatabasePath {
@@ -88,9 +96,13 @@ if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
   Write-Host "Created .env from .env.example. Adjust domain/port settings if needed."
 }
 
-if (-not $SkipInstall -and -not (Test-Path "node_modules")) {
+if (-not $SkipInstall -and ((-not (Test-Path "node_modules")) -or (-not (Test-Path "backend\node_modules")))) {
   Write-Host "Installing dependencies..."
-  pnpm install --frozen-lockfile
+  if ($BackendOnly) {
+    Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
+  } else {
+    Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+  }
 }
 
 $env:NODE_ENV = "production"
@@ -98,16 +110,29 @@ $env:BACKEND_PORT = "$Port"
 $env:BACKEND_HOST = $HostAddress
 $env:VITE_API_BASE = "/api"
 $env:VITE_STATIC_BASE = "/static"
+if ($BackendOnly) {
+  $env:SERVE_FRONTEND = "false"
+}
 
 if (-not $SkipBuild) {
-  Write-Host "Building frontend and backend..."
-  pnpm build
+  if ($BackendOnly) {
+    Write-Host "Building backend..."
+    Invoke-CheckedCommand { pnpm --filter backend build }
+  } else {
+    Write-Host "Building frontend and backend..."
+    Invoke-CheckedCommand { pnpm build }
+  }
 }
 
 $DatabasePath = Resolve-BackendDatabasePath
 if (-not (Test-Path $DatabasePath)) {
   Write-Host "Database not found. Initializing SQLite data..."
-  pnpm --filter backend db:init
+  Invoke-CheckedCommand { pnpm --filter backend db:init }
+}
+
+$ServeFrontendAssignment = ""
+if ($BackendOnly) {
+  $ServeFrontendAssignment = '$env:SERVE_FRONTEND = "false"'
 }
 
 @"
@@ -118,7 +143,9 @@ Set-Location "$RootDir"
 `$env:BACKEND_HOST = "$HostAddress"
 `$env:VITE_API_BASE = "/api"
 `$env:VITE_STATIC_BASE = "/static"
+$ServeFrontendAssignment
 pnpm --filter backend start
+if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 "@ | Set-Content -Path $RunnerFile -Encoding UTF8
 
 $Process = Start-Process `
