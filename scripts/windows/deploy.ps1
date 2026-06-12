@@ -76,6 +76,48 @@ function New-BackupPath([string]$BasePath) {
   return "{0}-backup-{1}-{2}" -f $BasePath, (Get-Date -Format "yyyyMMddHHmmss"), $PID
 }
 
+function Test-PortAvailable($PortNumber) {
+  try {
+    $Listeners = Get-NetTCPConnection -LocalPort $PortNumber -State Listen -ErrorAction SilentlyContinue
+    return -not $Listeners
+  } catch {
+    return $true
+  }
+}
+
+function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir, [switch]$BestEffort) {
+  if (-not (Test-Path $ScriptPath)) {
+    return
+  }
+
+  $StopArgs = @(
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    $ScriptPath,
+    "-Port",
+    $Port
+  )
+  if ($UseRootDir) {
+    $StopArgs += @("-RootDir", $DeployDir)
+  }
+
+  & powershell.exe @StopArgs
+  $StopExitCode = $LASTEXITCODE
+  if (Test-PortAvailable $Port) {
+    return
+  }
+
+  $Message = "stop.ps1 did not release port $Port. Exit code: $StopExitCode"
+  if ($BestEffort) {
+    Write-Warning $Message
+    return
+  }
+
+  throw $Message
+}
+
 function Invoke-RobocopyMirror([string]$From, [string]$To) {
   New-Item -ItemType Directory -Force $To | Out-Null
 
@@ -146,12 +188,14 @@ if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewD
 }
 
 $OldStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
-if (Test-Path $SourceStopScript) {
-  Write-Host "Stopping existing service..."
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SourceStopScript -Port $Port -RootDir $DeployDir
-} elseif (Test-Path $OldStopScript) {
-  Write-Host "Stopping existing service..."
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $OldStopScript -Port $Port
+if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
+  if (Test-Path $SourceStopScript) {
+    Write-Host "Stopping existing service..."
+    Invoke-StopScript -ScriptPath $SourceStopScript -UseRootDir
+  } elseif (Test-Path $OldStopScript) {
+    Write-Host "Stopping existing service..."
+    Invoke-StopScript -ScriptPath $OldStopScript
+  }
 }
 
 $PreviousDeployMoved = $false
@@ -205,11 +249,11 @@ try {
   Set-Location $SourceDir
 
   if ($NewDeployMoved -and (Test-Path $SourceStopScript)) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SourceStopScript -Port $Port -RootDir $DeployDir
+    Invoke-StopScript -ScriptPath $SourceStopScript -UseRootDir -BestEffort
   } elseif ($NewDeployMoved) {
     $CurrentStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
     if (Test-Path $CurrentStopScript) {
-      & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $CurrentStopScript -Port $Port
+      Invoke-StopScript -ScriptPath $CurrentStopScript -BestEffort
     }
   }
 
@@ -223,6 +267,11 @@ try {
 
   $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
   if (Test-Path $RollbackStartScript) {
+    if (-not (Test-PortAvailable $Port)) {
+      Write-Warning "Skipping rollback start because port $Port is still in use."
+      throw
+    }
+
     $RollbackStartArgs = @(
       "-NoProfile",
       "-ExecutionPolicy",

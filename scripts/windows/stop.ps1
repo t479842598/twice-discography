@@ -62,19 +62,49 @@ function Test-PortAvailable($PortNumber) {
   }
 }
 
+function Get-PortProcessReferences {
+  try {
+    $Listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+    $OwnerIds = @($Listeners | ForEach-Object { $_.OwningProcess } | Select-Object -Unique)
+    foreach ($OwnerId in $OwnerIds) {
+      Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerId" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProcessId -ne $PID -and $_.Name -in $ServiceProcessNames }
+    }
+  } catch {
+    Write-Warning "Failed to check process by port: $($_.Exception.Message)"
+  }
+}
+
+function Stop-PortProcessReferences {
+  $StoppedAny = $false
+  $Processes = @(Get-PortProcessReferences)
+  foreach ($Process in $Processes) {
+    Stop-ProcessTree -ProcessId ([int]$Process.ProcessId)
+    Write-Host "Stopped process on port $Port. PID: $($Process.ProcessId)"
+    $StoppedAny = $true
+  }
+
+  return $StoppedAny
+}
+
 function Wait-ServiceReleased {
-  for ($Attempt = 1; $Attempt -le 10; $Attempt++) {
+  for ($Attempt = 1; $Attempt -le 20; $Attempt++) {
     $RemainingRootProcesses = @(Get-RootProcessReferences)
-    if ((Test-PortAvailable $Port) -and $RemainingRootProcesses.Count -eq 0) {
+    $RemainingPortProcesses = @(Get-PortProcessReferences)
+    if ((Test-PortAvailable $Port) -and $RemainingRootProcesses.Count -eq 0 -and $RemainingPortProcesses.Count -eq 0) {
       return
     }
 
-    foreach ($Process in $RemainingRootProcesses) {
+    $RemainingProcesses = @($RemainingRootProcesses + $RemainingPortProcesses) |
+      Sort-Object -Property ProcessId -Unique
+    foreach ($Process in $RemainingProcesses) {
       Stop-ProcessTree -ProcessId ([int]$Process.ProcessId)
     }
 
     Start-Sleep -Seconds 1
   }
+
+  throw "Service did not release port $Port or root $RootDir after waiting."
 }
 
 $Stopped = $false
@@ -92,21 +122,8 @@ if (Test-Path $PidFile) {
   Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
 }
 
-if (-not $Stopped) {
-  try {
-    $Listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    $OwnerIds = $Listeners | Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($OwnerId in $OwnerIds) {
-      $Owner = Get-Process -Id $OwnerId -ErrorAction SilentlyContinue
-      if ($Owner -and $Owner.ProcessName -in @("node", "pnpm", "cmd", "powershell", "pwsh")) {
-        Stop-ProcessTree -ProcessId ([int]$OwnerId)
-        Write-Host "Stopped process on port $Port. PID: $OwnerId"
-        $Stopped = $true
-      }
-    }
-  } catch {
-    Write-Warning "Failed to check process by port: $($_.Exception.Message)"
-  }
+if (Stop-PortProcessReferences) {
+  $Stopped = $true
 }
 
 if (Stop-RootProcessReferences) {
