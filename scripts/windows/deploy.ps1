@@ -4,7 +4,8 @@ param(
   [string]$DeployDir = "C:\twice-discography",
   [int]$Port = 3000,
   [string]$HostAddress = "0.0.0.0",
-  [switch]$KeepBackup
+  [switch]$KeepBackup,
+  [switch]$BackendOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -172,7 +173,22 @@ try {
     corepack prepare pnpm@9.7.0 --activate
   }
 
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $DeployDir "scripts\windows\start.ps1") -Port $Port -HostAddress $HostAddress -BackendOnly
+  $StartArgs = @(
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    (Join-Path $DeployDir "scripts\windows\start.ps1"),
+    "-Port",
+    $Port,
+    "-HostAddress",
+    $HostAddress
+  )
+  if ($BackendOnly) {
+    $StartArgs += "-BackendOnly"
+  }
+
+  & powershell.exe @StartArgs
   if ($LASTEXITCODE -ne 0) {
     throw "start.ps1 failed with exit code $LASTEXITCODE"
   }
@@ -207,8 +223,24 @@ try {
 
   $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
   if (Test-Path $RollbackStartScript) {
-    $env:SERVE_FRONTEND = "false"
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RollbackStartScript -Port $Port -HostAddress $HostAddress -SkipInstall -SkipBuild
+    $RollbackStartArgs = @(
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      $RollbackStartScript,
+      "-Port",
+      $Port,
+      "-HostAddress",
+      $HostAddress,
+      "-SkipInstall",
+      "-SkipBuild"
+    )
+    if ($BackendOnly) {
+      $RollbackStartArgs += "-BackendOnly"
+    }
+
+    & powershell.exe @RollbackStartArgs
   }
 
   throw
