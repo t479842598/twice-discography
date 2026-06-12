@@ -15,6 +15,7 @@ $PidFile = Join-Path $RunDir "twice-discography.pid"
 $RunnerFile = Join-Path $RunDir "run-backend.ps1"
 $StdoutLog = Join-Path $RunDir "twice-discography.out.log"
 $StderrLog = Join-Path $RunDir "twice-discography.err.log"
+$RunnerTrackingEnvName = "RUNNER_TRACKING_ID"
 
 function Ensure-Command($Name, $InstallHint) {
   if (Get-Command $Name -ErrorAction SilentlyContinue) {
@@ -141,6 +142,7 @@ if ($BackendOnly) {
 
 @"
 `$ErrorActionPreference = "Stop"
+Remove-Item Env:\$RunnerTrackingEnvName -ErrorAction SilentlyContinue
 Set-Location "$RootDir"
 `$env:NODE_ENV = "production"
 `$env:BACKEND_PORT = "$Port"
@@ -151,6 +153,8 @@ $ServeFrontendAssignment
 pnpm --filter backend start
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 "@ | Set-Content -Path $RunnerFile -Encoding UTF8
+
+Remove-Item "Env:\$RunnerTrackingEnvName" -ErrorAction SilentlyContinue
 
 $Process = Start-Process `
   -FilePath "powershell.exe" `
