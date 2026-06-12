@@ -7,11 +7,31 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RootDir = [System.IO.Path]::GetFullPath($RootDir)
+function Get-ProcessById([int]$ProcessId) {
+  Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+}
+
 $RunDir = Join-Path $RootDir ".codex-run"
 $PidFile = Join-Path $RunDir "twice-discography.pid"
 $ServiceProcessNames = @("node.exe", "pnpm.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
+$ProtectedProcessIds = @([int]$PID)
+$ProtectedProcess = Get-ProcessById -ProcessId ([int]$PID)
+while ($ProtectedProcess -and $ProtectedProcess.ParentProcessId) {
+  $ProtectedParent = Get-ProcessById -ProcessId ([int]$ProtectedProcess.ParentProcessId)
+  if (-not $ProtectedParent) {
+    break
+  }
+
+  $ProtectedProcessIds += [int]$ProtectedParent.ProcessId
+  $ProtectedProcess = $ProtectedParent
+}
+$ProtectedProcessIds = @($ProtectedProcessIds | Select-Object -Unique)
 
 function Stop-ProcessTree([int]$ProcessId) {
+  if ($ProtectedProcessIds -contains $ProcessId) {
+    return
+  }
+
   $Children = Get-CimInstance Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue
   foreach ($Child in $Children) {
     Stop-ProcessTree -ProcessId ([int]$Child.ProcessId)
@@ -21,6 +41,45 @@ function Stop-ProcessTree([int]$ProcessId) {
   if ($Process) {
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
     Wait-Process -Id $ProcessId -Timeout 5 -ErrorAction SilentlyContinue
+  }
+
+  if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+    try {
+      & taskkill.exe /PID $ProcessId /T /F 2>&1 | Out-Null
+    } catch {
+      # The process may have exited between the check and taskkill.
+    }
+    Wait-Process -Id $ProcessId -Timeout 5 -ErrorAction SilentlyContinue
+  }
+}
+
+function Get-ServiceProcessFamily($Process) {
+  $Family = @($Process)
+  $Current = $Process
+
+  while ($Current -and $Current.ParentProcessId) {
+    $Parent = Get-ProcessById -ProcessId ([int]$Current.ParentProcessId)
+    if (-not $Parent) {
+      break
+    }
+    if (($ProtectedProcessIds -contains [int]$Parent.ProcessId) -or $Parent.Name -notin $ServiceProcessNames) {
+      break
+    }
+
+    $Family += $Parent
+    $Current = $Parent
+  }
+
+  $Family |
+    Where-Object { -not ($ProtectedProcessIds -contains [int]$_.ProcessId) } |
+    Sort-Object -Property ProcessId -Unique
+}
+
+function Stop-ServiceProcessFamily($Process, [string]$Reason) {
+  $Family = @(Get-ServiceProcessFamily $Process)
+  foreach ($Target in $Family) {
+    Stop-ProcessTree -ProcessId ([int]$Target.ProcessId)
+    Write-Host "Stopped $Reason. PID: $($Target.ProcessId) Name: $($Target.Name)"
   }
 }
 
@@ -36,6 +95,7 @@ function Get-RootProcessReferences {
   Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
     Where-Object {
       $_.ProcessId -ne $PID -and
+      -not ($ProtectedProcessIds -contains [int]$_.ProcessId) -and
       $_.Name -in $ServiceProcessNames -and
       (Test-CommandLineReferencesRoot $_.CommandLine)
     }
@@ -45,8 +105,7 @@ function Stop-RootProcessReferences {
   $StoppedAny = $false
   $Processes = @(Get-RootProcessReferences)
   foreach ($Process in $Processes) {
-    Stop-ProcessTree -ProcessId ([int]$Process.ProcessId)
-    Write-Host "Stopped process referencing $RootDir. PID: $($Process.ProcessId)"
+    Stop-ServiceProcessFamily -Process $Process -Reason "process referencing $RootDir"
     $StoppedAny = $true
   }
 
@@ -68,7 +127,10 @@ function Get-PortProcessReferences {
     $OwnerIds = @($Listeners | ForEach-Object { $_.OwningProcess } | Select-Object -Unique)
     foreach ($OwnerId in $OwnerIds) {
       Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerId" -ErrorAction SilentlyContinue |
-        Where-Object { $_.ProcessId -ne $PID -and $_.Name -in $ServiceProcessNames }
+        Where-Object {
+          -not ($ProtectedProcessIds -contains [int]$_.ProcessId) -and
+          $_.Name -in $ServiceProcessNames
+        }
     }
   } catch {
     Write-Warning "Failed to check process by port: $($_.Exception.Message)"
@@ -79,12 +141,23 @@ function Stop-PortProcessReferences {
   $StoppedAny = $false
   $Processes = @(Get-PortProcessReferences)
   foreach ($Process in $Processes) {
-    Stop-ProcessTree -ProcessId ([int]$Process.ProcessId)
-    Write-Host "Stopped process on port $Port. PID: $($Process.ProcessId)"
+    Stop-ServiceProcessFamily -Process $Process -Reason "process on port $Port"
     $StoppedAny = $true
   }
 
   return $StoppedAny
+}
+
+function Write-RemainingProcesses {
+  $RemainingPortProcesses = @(Get-PortProcessReferences)
+  foreach ($Process in $RemainingPortProcesses) {
+    Write-Warning "Remaining process on port $Port. PID: $($Process.ProcessId) Name: $($Process.Name) CommandLine: $($Process.CommandLine)"
+  }
+
+  $RemainingRootProcesses = @(Get-RootProcessReferences)
+  foreach ($Process in $RemainingRootProcesses) {
+    Write-Warning "Remaining process referencing $RootDir. PID: $($Process.ProcessId) Name: $($Process.Name) CommandLine: $($Process.CommandLine)"
+  }
 }
 
 function Wait-ServiceReleased {
@@ -98,12 +171,13 @@ function Wait-ServiceReleased {
     $RemainingProcesses = @($RemainingRootProcesses + $RemainingPortProcesses) |
       Sort-Object -Property ProcessId -Unique
     foreach ($Process in $RemainingProcesses) {
-      Stop-ProcessTree -ProcessId ([int]$Process.ProcessId)
+      Stop-ServiceProcessFamily -Process $Process -Reason "remaining service process"
     }
 
     Start-Sleep -Seconds 1
   }
 
+  Write-RemainingProcesses
   throw "Service did not release port $Port or root $RootDir after waiting."
 }
 
