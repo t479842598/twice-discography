@@ -51,6 +51,26 @@ function Remove-TreeWithRetry([string]$Path, [switch]$BestEffort) {
   throw $Message
 }
 
+function Move-PathWithRetry([string]$From, [string]$To) {
+  $FullFrom = Resolve-FullPath $From
+  $FullTo = Resolve-FullPath $To
+  $LastError = $null
+
+  for ($Attempt = 1; $Attempt -le 10; $Attempt++) {
+    try {
+      Move-Item -LiteralPath $FullFrom -Destination $FullTo -ErrorAction Stop
+      return
+    } catch {
+      $LastError = $_.Exception.Message
+      if ($Attempt -lt 10) {
+        Start-Sleep -Seconds 1
+      }
+    }
+  }
+
+  throw "Failed to move $FullFrom to $FullTo after retries: $LastError"
+}
+
 function New-BackupPath([string]$BasePath) {
   return "{0}-backup-{1}-{2}" -f $BasePath, (Get-Date -Format "yyyyMMddHHmmss"), $PID
 }
@@ -89,6 +109,7 @@ $DeployDir = Resolve-FullPath $DeployDir
 $NewDir = "$DeployDir-new"
 $LegacyBackupDir = "$DeployDir-backup"
 $BackupDir = New-BackupPath $DeployDir
+$SourceStopScript = Join-Path $SourceDir "scripts\windows\stop.ps1"
 
 if (-not (Test-Path $SourceDir)) {
   throw "SourceDir does not exist: $SourceDir"
@@ -124,18 +145,26 @@ if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewD
 }
 
 $OldStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
-if (Test-Path $OldStopScript) {
+if (Test-Path $SourceStopScript) {
+  Write-Host "Stopping existing service..."
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SourceStopScript -Port $Port -RootDir $DeployDir
+} elseif (Test-Path $OldStopScript) {
   Write-Host "Stopping existing service..."
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $OldStopScript -Port $Port
 }
 
-if (Test-Path $DeployDir) {
-  Move-Item -LiteralPath $DeployDir -Destination $BackupDir
-}
-
-Move-Item -LiteralPath $NewDir -Destination $DeployDir
+$PreviousDeployMoved = $false
+$NewDeployMoved = $false
 
 try {
+  if (Test-Path $DeployDir) {
+    Move-PathWithRetry -From $DeployDir -To $BackupDir
+    $PreviousDeployMoved = $true
+  }
+
+  Move-PathWithRetry -From $NewDir -To $DeployDir
+  $NewDeployMoved = $true
+
   Set-Location $DeployDir
 
   if (Get-Command corepack -ErrorAction SilentlyContinue) {
@@ -157,23 +186,29 @@ try {
   Write-Host "Deployment finished successfully."
 } catch {
   Write-Warning "Deployment failed: $($_.Exception.Message)"
+  Set-Location $SourceDir
 
-  $CurrentStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
-  if (Test-Path $CurrentStopScript) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $CurrentStopScript -Port $Port
+  if ($NewDeployMoved -and (Test-Path $SourceStopScript)) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SourceStopScript -Port $Port -RootDir $DeployDir
+  } elseif ($NewDeployMoved) {
+    $CurrentStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
+    if (Test-Path $CurrentStopScript) {
+      & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $CurrentStopScript -Port $Port
+    }
   }
 
-  if (Test-Path $DeployDir) {
+  if ($NewDeployMoved -and (Test-Path $DeployDir)) {
     Remove-TreeWithRetry $DeployDir
   }
 
-  if (Test-Path $BackupDir) {
-    Move-Item -LiteralPath $BackupDir -Destination $DeployDir
-    $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
-    if (Test-Path $RollbackStartScript) {
-      $env:SERVE_FRONTEND = "false"
-      & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RollbackStartScript -Port $Port -HostAddress $HostAddress -SkipInstall -SkipBuild
-    }
+  if ($PreviousDeployMoved -and (Test-Path $BackupDir)) {
+    Move-PathWithRetry -From $BackupDir -To $DeployDir
+  }
+
+  $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
+  if (Test-Path $RollbackStartScript) {
+    $env:SERVE_FRONTEND = "false"
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RollbackStartScript -Port $Port -HostAddress $HostAddress -SkipInstall -SkipBuild
   }
 
   throw
