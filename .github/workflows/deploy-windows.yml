@@ -18,6 +18,8 @@ jobs:
       WINDOWS_DEPLOY_DIR: ${{ vars.WINDOWS_DEPLOY_DIR || 'C:\twice-discography' }}
       WINDOWS_DEPLOY_PORT: '10009'
       WINDOWS_DEPLOY_HOST: ${{ vars.WINDOWS_DEPLOY_HOST || '0.0.0.0' }}
+      VITE_API_BASE: /api
+      VITE_STATIC_BASE: /static
 
     steps:
       - name: Checkout
