@@ -65,9 +65,11 @@ function Backup-PathWithRetry([string]$From, [string]$To) {
       if ($exitCode -gt 7) {
         throw "robocopy backup failed with exit code $exitCode"
       }
-      # Remove the original (best effort — locked files may stay)
+      # Remove node_modules first (may be locked by npm) before removing the rest
+      Remove-Item -LiteralPath (Join-Path $FullFrom "node_modules") -Recurse -Force -ErrorAction SilentlyContinue
+      # Remove the rest (best effort — locked files may stay)
       Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
-      # If some files remain locked, retry removal
+      # If some files remain locked, warn but continue
       if (Test-Path $FullFrom) {
         $remaining = (Get-ChildItem $FullFrom -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
         if ($remaining -gt 0) {
@@ -94,11 +96,14 @@ function Deploy-PathWithRetry([string]$From, [string]$To) {
 
   for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
     try {
-      robocopy $FullFrom $FullTo /MIR /R:2 /W:2 /NP /NDL /NFL
+      # Exclude node_modules from mirror — deps handled by pnpm install during start
+      robocopy $FullFrom $FullTo /MIR /R:2 /W:2 /NP /NDL /NFL /XD node_modules
       $exitCode = $LASTEXITCODE
       if ($exitCode -gt 7) {
         throw "robocopy deploy failed with exit code $exitCode"
       }
+      # Remove stale node_modules from target (best effort)
+      Remove-Item -LiteralPath (Join-Path $FullTo "node_modules") -Recurse -Force -ErrorAction SilentlyContinue
       Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
       return
     } catch {
@@ -217,6 +222,13 @@ Invoke-RobocopyMirror -From $SourceDir -To $NewDir
 if (Test-Path $DeployDir) {
   Copy-IfExists -From (Join-Path $DeployDir ".env") -To (Join-Path $NewDir ".env")
   Copy-IfExists -From (Join-Path $DeployDir ".env.production") -To (Join-Path $NewDir ".env.production")
+
+  # Preserve existing database across deploys
+  $ExistingDataDir = Join-Path $DeployDir "data"
+  if (Test-Path $ExistingDataDir) {
+    New-Item -ItemType Directory -Force (Join-Path $NewDir "data") | Out-Null
+    Copy-Item (Join-Path $ExistingDataDir "*") (Join-Path $NewDir "data") -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }
 
 if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewDir ".env.example"))) {
