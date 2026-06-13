@@ -260,7 +260,7 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
     const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
     playUrl.searchParams.set('bvid', bvid)
     playUrl.searchParams.set('cid', String(cid))
-    playUrl.searchParams.set('qn', '80')
+    playUrl.searchParams.set('qn', '120')
     playUrl.searchParams.set('fnval', '0')
     playUrl.searchParams.set('fourk', '1')
     playUrl.searchParams.set('platform', 'web')
