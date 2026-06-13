@@ -132,7 +132,7 @@ function Invoke-RobocopyMirror([string]$From, [string]$To) {
     "/NFL",
     "/NDL",
     "/NP",
-    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist", (Join-Path $From "data"),
+    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist",
     "/XF", ".env"
   )
 
@@ -176,12 +176,7 @@ Invoke-RobocopyMirror -From $SourceDir -To $NewDir
 
 if (Test-Path $DeployDir) {
   Copy-IfExists -From (Join-Path $DeployDir ".env") -To (Join-Path $NewDir ".env")
-
-  $ExistingDataDir = Join-Path $DeployDir "data"
-  if (Test-Path $ExistingDataDir) {
-    New-Item -ItemType Directory -Force (Join-Path $NewDir "data") | Out-Null
-    Copy-Item (Join-Path $ExistingDataDir "*") (Join-Path $NewDir "data") -Recurse -Force -ErrorAction SilentlyContinue
-  }
+  Copy-IfExists -From (Join-Path $DeployDir ".env.production") -To (Join-Path $NewDir ".env.production")
 }
 
 if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewDir ".env.example"))) {
