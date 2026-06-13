@@ -97,7 +97,8 @@ function Get-RootProcessReferences {
       $_.ProcessId -ne $PID -and
       -not ($ProtectedProcessIds -contains [int]$_.ProcessId) -and
       $_.Name -in $ServiceProcessNames -and
-      (Test-CommandLineReferencesRoot $_.CommandLine)
+      (Test-CommandLineReferencesRoot $_.CommandLine) -and
+      (Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue)  # Skip dead processes
     }
 }
 
@@ -126,6 +127,10 @@ function Get-PortProcessReferences {
     $Listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
     $OwnerIds = @($Listeners | ForEach-Object { $_.OwningProcess } | Select-Object -Unique)
     foreach ($OwnerId in $OwnerIds) {
+      # Skip if the process is no longer alive (TCP table may cache old entries)
+      if (-not (Get-Process -Id $OwnerId -ErrorAction SilentlyContinue)) {
+        continue
+      }
       Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerId" -ErrorAction SilentlyContinue |
         Where-Object {
           -not ($ProtectedProcessIds -contains [int]$_.ProcessId) -and
