@@ -97,12 +97,27 @@ if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
   Write-Host "Created .env from .env.example. Adjust domain/port settings if needed."
 }
 
-if (-not $SkipInstall -and ((-not (Test-Path "node_modules")) -or (-not (Test-Path "backend\node_modules")))) {
+# Always reinstall — pnpm handles no-op if up to date,
+# but if node_modules is corrupted we need a fresh install
+if (-not $SkipInstall) {
   Write-Host "Installing dependencies..."
-  if ($BackendOnly) {
-    Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
-  } else {
-    Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+  try {
+    if ($BackendOnly) {
+      Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
+    } else {
+      Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+    }
+  } catch {
+    Write-Warning "pnpm install failed. Cleaning node_modules and retrying..."
+    cmd /c "rmdir /s /q `"$RootDir\node_modules`" 2>nul"
+    cmd /c "rmdir /s /q `"$RootDir\backend\node_modules`" 2>nul"
+    cmd /c "rmdir /s /q `"$RootDir\frontend\node_modules`" 2>nul"
+    Start-Sleep 2
+    if ($BackendOnly) {
+      Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
+    } else {
+      Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+    }
   }
 }
 
