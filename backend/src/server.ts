@@ -18,6 +18,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+// Production override: .env.production values take precedence over .env
+dotenv.config({ path: path.resolve(__dirname, '../../.env.production'), override: true })
 dotenv.config()
 
 function staticCacheControl(filePath: string) {
