@@ -38,7 +38,7 @@ function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir) {
   if (Test-PortAvailable $Port) { return }
 
   Write-Warning "stop.ps1 did not release port $Port (exit $StopExitCode). Forcing..."
-  # Force kill anything on the port
+  # Force kill anything on the port, then wait for release
   try {
     $pids = (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).OwningProcess | Select-Object -Unique
     foreach ($p in $pids) {
@@ -46,6 +46,14 @@ function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir) {
       Start-Sleep -Milliseconds 500
     }
   } catch {}
+  # Wait for port to actually be released
+  for ($i = 1; $i -le 10; $i++) {
+    if (Test-PortAvailable $Port) { break }
+    Start-Sleep -Seconds 1
+  }
+  if (-not (Test-PortAvailable $Port)) {
+    throw "Port $Port could not be released after force-kill. Aborting."
+  }
 }
 
 # ---- Main ----
