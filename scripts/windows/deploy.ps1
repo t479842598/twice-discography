@@ -92,7 +92,7 @@ $roboArgs = @(
   "/NFL", "/NDL", "/NP",
   "/XD",          # exclude these dirs:
     ".git", ".github", ".codex-run", ".codegraph", ".reasonix",
-    "node_modules", "dist",
+    "node_modules", "dist", "data",
     "frontend\dist", "backend\dist"
   "/XF", ".env"   # exclude .env (preserve production config)
 )
@@ -103,7 +103,7 @@ if ($roboExit -gt 7) {
   throw "robocopy failed with exit code $roboExit"
 }
 
-# 3. Preserve .env and data/
+# 3. Preserve .env and database
 if (Test-Path $DeployDir) {
   if (-not (Test-Path (Join-Path $DeployDir ".env")) -and (Test-Path (Join-Path $DeployDir ".env.example"))) {
     Copy-Item (Join-Path $DeployDir ".env.example") (Join-Path $DeployDir ".env") -Force
@@ -113,6 +113,9 @@ if (Test-Path $DeployDir) {
     Write-Warning "No .env found. Creating from .env.example..."
     Copy-Item (Join-Path $DeployDir ".env.example") (Join-Path $DeployDir ".env") -Force
   }
+  # Backend SQLite database lives in backend\data, not root data\
+  # The source repo's data/twice.db is tracking-only; production DB is backend\data\twice.db
+  # /E flag won't touch it since source doesn't have backend\data\
 }
 
 # 4. Enable corepack + start
