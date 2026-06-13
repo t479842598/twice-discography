@@ -183,6 +183,11 @@ if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewD
   Write-Warning "Created .env from .env.example. Please review production secrets in $DeployDir\.env after first deploy."
 }
 
+if (-not (Test-Path (Join-Path $NewDir ".env.production")) -and (Test-Path (Join-Path $NewDir ".env.production.example"))) {
+  Copy-Item (Join-Path $NewDir ".env.production.example") (Join-Path $NewDir ".env.production") -Force
+  Write-Warning "Created .env.production from template. Fill in R2 keys and BILI_CREDENTIAL_ENCRYPTION_KEY in $DeployDir\.env.production."
+}
+
 $OldStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
 if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
   if (Test-Path $SourceStopScript) {
