@@ -81,12 +81,6 @@ if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
   }
 }
 
-# Try to clean up old node_modules before deployment
-if (Test-Path (Join-Path $DeployDir "node_modules")) {
-  Write-Host "Cleaning old node_modules..."
-  cmd /c "rmdir /s /q `"$DeployDir\node_modules`" 2>nul"
-}
-
 # 2. Robocopy source → deploy (only source code, skip everything external)
 Write-Host "Copying source files..."
 $roboArgs = @(
