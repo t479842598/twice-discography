@@ -909,7 +909,6 @@ a {
 .section-toggle-icon svg {
   width: 18px;
   height: 18px;
-  display: block;
 }
 
 .section-toggle-svg-up { display: none; }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { createAdminRole, createAdminUser, deleteAdminRole, listAdminRoles, listAdminUsers, normalizeAdminRoles, updateAdminRole, updateAdminUser } from '../db/admin.js'
+import { getDatabase } from '../db/database.js'
 import { listMvConfigs, upsertMvConfig } from '../db/mv.js'
 import { getBiliCredentialStatus, getBiliProfile, resolveBiliVideoMeta, saveBiliCredential, verifyBiliCredential } from '../services/biliCredential.js'
 import {
@@ -214,5 +215,45 @@ export async function registerAdminRoutes(app: FastifyInstance) {
   app.post('/auth/clear-cookie', async (_request, reply) => {
     clearAdminSessionCookie(reply)
     return { ok: true }
+  })
+
+  // ---- Dashboard stats ----
+  app.get('/stats', async (request, reply) => {
+    if (!requireAdmin(request, reply, ['owner', 'admin', 'editor'])) return reply
+    const db = getDatabase()
+    const catalog = {
+      albums: (db.prepare('SELECT COUNT(*) as c FROM albums').get() as { c: number }).c,
+      tracks: (db.prepare('SELECT COUNT(*) as c FROM tracks').get() as { c: number }).c,
+      members: (db.prepare('SELECT COUNT(*) as c FROM members').get() as { c: number }).c,
+      cfs: (db.prepare('SELECT COUNT(*) as c FROM cfs').get() as { c: number }).c,
+      covers: (db.prepare('SELECT COUNT(*) as c FROM covers').get() as { c: number }).c,
+    }
+    const mvs = {
+      pending: (db.prepare('SELECT COUNT(*) as c FROM mv_configs WHERE enabled = 1').get() as { c: number }).c,
+      homeFeatured: (db.prepare('SELECT COUNT(*) as c FROM mv_configs WHERE enabled = 1 AND is_home_featured = 1').get() as { c: number }).c,
+    }
+    const admins = (db.prepare('SELECT COUNT(*) as c FROM admin_users WHERE disabled = 0').get() as { c: number }).c
+    const r2Ready = db.prepare("SELECT COUNT(*) as c, COALESCE(SUM(size_bytes), 0) as totalBytes FROM music_assets WHERE status = 'ready'").get() as { c: number; totalBytes: number }
+    const biliCredential = getBiliCredentialStatus()
+    return {
+      catalog,
+      mvs,
+      admins,
+      r2Cache: { readyAssets: r2Ready.c, totalBytes: r2Ready.totalBytes },
+      biliCredential,
+    }
+  })
+
+  app.get('/recent-activity', async (request, reply) => {
+    if (!requireAdmin(request, reply, ['owner', 'admin', 'editor'])) return reply
+    const db = getDatabase()
+    const mvUpdates = db.prepare("SELECT track_id, updated_at FROM mv_configs WHERE updated_at IS NOT NULL ORDER BY updated_at DESC LIMIT 5").all() as Array<{ track_id: string; updated_at: number }>
+    const items = mvUpdates.map((row) => ({
+      type: 'mv',
+      title: row.track_id,
+      description: 'MV 配置已更新',
+      time: row.updated_at,
+    }))
+    return { items }
   })
 }

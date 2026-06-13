@@ -28,6 +28,10 @@ interface CoverAsset {
   contentType: string
 }
 
+function toBody(bytes: Uint8Array): Buffer {
+  return Buffer.from(bytes)
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const backendRoot = path.resolve(__dirname, '../..')
@@ -205,7 +209,7 @@ async function uploadToR2(config: R2Config, asset: CoverAsset) {
 
   const response = await fetch(url, {
     method: 'PUT',
-    body: asset.bytes,
+    body: toBody(asset.bytes) as any,
     headers: {
       authorization,
       'cache-control': 'public, max-age=31536000, immutable',

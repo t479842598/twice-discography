@@ -77,3 +77,6 @@ reasonix.toml
 frontend-backup-*/
 frontend-backup-*.tar.gz
 notion_page.html
+
+# Code intelligence cache
+.codegraph/

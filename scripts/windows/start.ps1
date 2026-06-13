@@ -143,14 +143,14 @@ if ($BackendOnly) {
 @"
 `$ErrorActionPreference = "Stop"
 Remove-Item Env:\$RunnerTrackingEnvName -ErrorAction SilentlyContinue
-Set-Location "$RootDir"
+Set-Location "$RootDir\backend"
 `$env:NODE_ENV = "production"
 `$env:BACKEND_PORT = "$Port"
 `$env:BACKEND_HOST = "$HostAddress"
 `$env:VITE_API_BASE = "/api"
 `$env:VITE_STATIC_BASE = "/static"
 $ServeFrontendAssignment
-pnpm --filter backend start
+node dist/server.js
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 "@ | Set-Content -Path $RunnerFile -Encoding UTF8
 

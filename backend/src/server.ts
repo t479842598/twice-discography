@@ -17,7 +17,7 @@ import { ensureRuntimeMigrations } from './db/database.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true })
 // Production override: .env.production values take precedence over .env
 dotenv.config({ path: path.resolve(__dirname, '../../.env.production'), override: true })
 dotenv.config()

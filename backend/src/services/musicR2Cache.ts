@@ -31,6 +31,10 @@ interface DownloadedAudio {
   sizeBytes: number
 }
 
+function toBodyInit(bytes: Uint8Array): Buffer {
+  return Buffer.from(bytes)
+}
+
 interface UploadResult {
   etag?: string | null
 }
@@ -191,7 +195,7 @@ async function uploadToR2(config: R2Config, key: string, audio: DownloadedAudio)
 
   const response = await fetch(url, {
     method: 'PUT',
-    body: audio.bytes,
+    body: toBodyInit(audio.bytes) as any,
     headers: {
       authorization,
       'content-length': String(audio.sizeBytes),
