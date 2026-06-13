@@ -1686,10 +1686,11 @@
   padding: 0 18px;
   border-radius: 12px;
   background: var(--admin-accent-gradient);
-  color: #ffffff;
+  color: #1a1a2e;
   font-weight: 800;
   font-size: 13px;
   text-decoration: none;
+  text-shadow: none;
   box-shadow: var(--admin-shadow-brand);
   transition: all 0.2s ease;
 }

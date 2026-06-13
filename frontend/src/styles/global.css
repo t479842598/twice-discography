@@ -441,6 +441,7 @@ a {
 :root[data-theme='dark'] .admin-login-link,
 :root[data-theme='dark'] .admin-account-button {
   background: rgba(58, 35, 59, 0.74);
+  color: #ffffff;
 }
 
 .content {
@@ -727,7 +728,6 @@ a {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: white;
-  font-size: 36px;
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -735,9 +735,15 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  padding: 0;
   backdrop-filter: blur(8px);
   transition: background 0.2s, border-color 0.2s;
+}
+
+.home-hero-carousel-arrow svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .home-hero-carousel-arrow:hover {
@@ -788,7 +794,11 @@ a {
   .home-hero-carousel-arrow {
     width: 36px;
     height: 36px;
-    font-size: 26px;
+  }
+
+  .home-hero-carousel-arrow svg {
+    width: 16px;
+    height: 16px;
   }
 
   .home-hero-carousel-arrow--left {
@@ -893,12 +903,20 @@ a {
   justify-content: center;
   width: 18px;
   height: 18px;
-  transition: transform 0.2s ease;
+  position: relative;
 }
 
-.section-toggle-icon.is-open {
-  transform: rotate(180deg);
+.section-toggle-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
+
+.section-toggle-svg-up { display: none; }
+.section-toggle-svg-down { display: block; }
+
+.section-toggle-icon.is-open .section-toggle-svg-up { display: block; }
+.section-toggle-icon.is-open .section-toggle-svg-down { display: none; }
 
 .stat-block,
 .year-chip,

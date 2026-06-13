@@ -7,7 +7,6 @@
       <div class="home-hero-shade" />
       <div class="home-hero-content">
         <img class="home-hero-logo" src="/twice-logomark.png" alt="TWICE" width="118" height="118" decoding="async" fetchpriority="high" />
-        <p>{{ t('home.heroKicker') }}</p>
         <h1>{{ pickText(activeCarouselMv.title, localeStore.locale) }}</h1>
         <p v-if="activeCarouselMv.albumName" class="home-hero-carousel-album">{{ activeCarouselMv.albumName }}</p>
         <div class="home-hero-actions">
@@ -15,8 +14,8 @@
           <n-button class="home-hero-secondary-button" size="large" @click="openCarouselMvPlayer(activeCarouselMv)">{{ t('home.watchMv') }}</n-button>
         </div>
       </div>
-      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--left" type="button" :aria-label="t('home.carouselPrev')" @click="carouselPrev">&#8249;</button>
-      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--right" type="button" :aria-label="t('home.carouselNext')" @click="carouselNext">&#8250;</button>
+      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--left" type="button" :aria-label="t('home.carouselPrev')" @click="carouselPrev"><svg viewBox="0 0 1024 1024" fill="none"><path d="M238 505c114 125 330 342 441 455l107-103c-37-37-344-349-345-359 63-64 247-252 325-340l-96-93L238 505z" fill="currentColor"/></svg></button>
+      <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--right" type="button" :aria-label="t('home.carouselNext')" @click="carouselNext"><svg viewBox="0 0 1024 1024" fill="none"><path d="M323 974l-81-82L622 512 241 132l82-82 462 462-462 462z" fill="currentColor"/></svg></button>
       <div v-if="featuredMvs.length > 1" class="home-hero-carousel-dots">
         <button
           v-for="(mv, idx) in featuredMvs"
@@ -92,7 +91,10 @@
         <h2>{{ t('home.timeline') }}</h2>
         <button v-if="canToggleTimeline" class="section-toggle" type="button" :aria-expanded="!isTimelineCollapsed" @click="isTimelineCollapsed = !isTimelineCollapsed">
           <span>{{ isTimelineCollapsed ? t('home.showAll') : t('home.collapse') }}</span>
-          <span class="section-toggle-icon" :class="{ 'is-open': !isTimelineCollapsed }">&#8996;</span>
+          <span class="section-toggle-icon" :class="{ 'is-open': !isTimelineCollapsed }">
+            <svg viewBox="0 0 1819 1024" class="section-toggle-svg-down"><path d="M1788 37h-5a112 112 0 0 0-155 0L909 751 191 32A112 112 0 0 0 37 32a112 112 0 0 0 0 154L833 992a112 112 0 0 0 154 0l801-801a112 112 0 0 0 0-154z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 1819 1024" class="section-toggle-svg-up"><path d="M32 987v5a112 112 0 0 0 154 0l723-719L1629 992a112 112 0 0 0 154 0l6-6a112 112 0 0 0 0-154L987 32a112 112 0 0 0-154 0L32 833a112 112 0 0 0 0 154z" fill="currentColor"/></svg>
+          </span>
         </button>
       </div>
       <div class="year-timeline">
@@ -133,7 +135,10 @@
         <h2>{{ t('home.featuredAlbums') }}</h2>
         <button v-if="canToggleAlbums" class="section-toggle" type="button" :aria-expanded="!isAlbumsCollapsed" @click="isAlbumsCollapsed = !isAlbumsCollapsed">
           <span>{{ isAlbumsCollapsed ? t('home.showAll') : t('home.collapse') }}</span>
-          <span class="section-toggle-icon" :class="{ 'is-open': !isAlbumsCollapsed }">&#8996;</span>
+          <span class="section-toggle-icon" :class="{ 'is-open': !isAlbumsCollapsed }">
+            <svg viewBox="0 0 1819 1024" class="section-toggle-svg-down"><path d="M1788 37h-5a112 112 0 0 0-155 0L909 751 191 32A112 112 0 0 0 37 32a112 112 0 0 0 0 154L833 992a112 112 0 0 0 154 0l801-801a112 112 0 0 0 0-154z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 1819 1024" class="section-toggle-svg-up"><path d="M32 987v5a112 112 0 0 0 154 0l723-719L1629 992a112 112 0 0 0 154 0l6-6a112 112 0 0 0 0-154L987 32a112 112 0 0 0-154 0L32 833a112 112 0 0 0 0 154z" fill="currentColor"/></svg>
+          </span>
         </button>
       </div>
       <div class="album-grid">

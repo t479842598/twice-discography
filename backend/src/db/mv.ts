@@ -73,7 +73,12 @@ function selectMvSql(where: string) {
       tracks.id AS track_id,
       tracks.title_zh,
       tracks.title_en,
-      albums.name_en AS album_name,
+      COALESCE(
+        CASE WHEN tracks.note_en LIKE '% · %' THEN tracks.note_en END,
+        CASE WHEN tracks.note_zh LIKE '% · %' THEN tracks.note_zh END,
+        albums.name_en,
+        albums.name_zh
+      ) AS album_name,
       tracks.bili_bvid AS fallback_bili_bvid,
       tracks.bili_page AS fallback_bili_page,
       tracks.yt_video_id AS fallback_yt_video_id,

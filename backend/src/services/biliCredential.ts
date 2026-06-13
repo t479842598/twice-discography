@@ -4,7 +4,7 @@ import type { MvConfigRecord } from '../db/mv.js'
 
 const CREDENTIAL_ID = 'default'
 const VERIFY_URL = 'https://api.bilibili.com/x/web-interface/nav'
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36'
+export const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36'
 
 interface BiliCredentialRow {
   encrypted_cookie: string
@@ -21,7 +21,7 @@ interface BiliApiResponse<T> {
   data?: T
 }
 
-interface BiliViewData {
+export interface BiliViewData {
   cid: number
   bvid?: string
   pic?: string
@@ -44,7 +44,7 @@ interface BiliNavData {
   dynamic?: number
 }
 
-interface BiliPlayData {
+export interface BiliPlayData {
   quality?: number
   accept_quality?: number[]
   durl?: Array<{ url: string; size?: number }>
@@ -123,7 +123,7 @@ function updateVerifyStatus(status: string, message: string) {
   `).run(Date.now(), status, message.slice(0, 500), Date.now(), CREDENTIAL_ID)
 }
 
-async function fetchBiliJson<T>(url: string, cookie: string): Promise<BiliApiResponse<T>> {
+export async function fetchBiliJson<T>(url: string, cookie: string): Promise<BiliApiResponse<T>> {
   const response = await fetch(url, {
     headers: {
       cookie,
@@ -226,14 +226,14 @@ function b64url(value: string) {
   return Buffer.from(value).toString('base64url')
 }
 
-function signProxyUrl(targetUrl: string, referer: string, expiresAt: number) {
+function signProxyUrl(targetUrl: string, referer: string, expiresAt: number, allowedOrigin: string) {
   const secret = process.env.MV_PROXY_SIGNING_SECRET?.trim()
   const base = process.env.MV_PROXY_BASE_URL?.trim()?.replace(/\/+$/, '')
   if (!secret || !base) return null
   const endpoint = base.endsWith('/mv-proxy') ? base : `${base}/mv-proxy`
-  const payload = `${targetUrl}\n${referer}\n${expiresAt}`
+  const payload = `${targetUrl}\n${referer}\n${expiresAt}\n${allowedOrigin}`
   const sig = createHmac('sha256', secret).update(payload).digest('base64url')
-  const params = new URLSearchParams({ u: b64url(targetUrl), r: b64url(referer), exp: String(expiresAt), sig })
+  const params = new URLSearchParams({ u: b64url(targetUrl), r: b64url(referer), exp: String(expiresAt), o: b64url(allowedOrigin), sig })
   return `${endpoint}?${params.toString()}`
 }
 
@@ -263,22 +263,27 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
     playUrl.searchParams.set('qn', '80')
     playUrl.searchParams.set('fnval', '0')
     playUrl.searchParams.set('fourk', '1')
+    playUrl.searchParams.set('platform', 'web')
     const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
     if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
-    const targetUrl = play.data.durl?.[0]?.url ?? play.data.dash?.video?.[0]?.baseUrl ?? play.data.dash?.video?.[0]?.base_url
+    const targetUrl = play.data.durl?.[0]?.url ??
+      play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.baseUrl ??
+      play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.base_url
     if (!targetUrl) throw new Error('bili_playurl_empty')
     const referer = `https://www.bilibili.com/video/${bvid}`
     const expiresAt = Date.now() + 10 * 60 * 1000
-    const proxyUrl = signProxyUrl(targetUrl, referer, expiresAt)
-    if (!proxyUrl) throw new Error('mv_proxy_not_configured')
+    const allowedOrigin = process.env.FRONTEND_ORIGIN?.split(',')[0]?.trim() || process.env.CORS_ORIGIN?.split(',')[0]?.trim() || ''
+    const externalProxyUrl = signProxyUrl(targetUrl, referer, expiresAt, allowedOrigin)
+    // When no external MV proxy is configured, stream through our own backend
+    const videoUrl = externalProxyUrl ?? `/api/mv/${encodeURIComponent(mv.trackId)}/stream`
 
     return {
       source: 'bilibili-proxy' as const,
       quality: play.data.quality ?? null,
-      videoUrl: proxyUrl,
+      videoUrl,
       expiresAt,
       fallbackIframeUrl,
-      message: 'ok',
+      message: externalProxyUrl ? 'ok' : 'mv_proxy_not_configured',
     }
   } catch (error) {
     return {
