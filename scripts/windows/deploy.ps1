@@ -4,7 +4,6 @@ param(
   [string]$DeployDir = "C:\twice-discography",
   [int]$Port = 3000,
   [string]$HostAddress = "0.0.0.0",
-  [switch]$KeepBackup,
   [switch]$BackendOnly
 )
 
@@ -12,115 +11,6 @@ $ErrorActionPreference = "Stop"
 
 function Resolve-FullPath([string]$Path) {
   return [System.IO.Path]::GetFullPath($Path)
-}
-
-function Assert-SafeRecursivePath([string]$Path) {
-  $FullPath = Resolve-FullPath $Path
-  $Root = [System.IO.Path]::GetPathRoot($FullPath)
-  if ($FullPath.TrimEnd('\') -eq $Root.TrimEnd('\')) {
-    throw "Refusing to recursively remove drive root: $FullPath"
-  }
-
-  return $FullPath
-}
-
-function Remove-TreeWithRetry([string]$Path, [switch]$BestEffort) {
-  $FullPath = Assert-SafeRecursivePath $Path
-  if (-not (Test-Path -LiteralPath $FullPath)) {
-    return
-  }
-
-  $LastError = $null
-  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
-    try {
-      Remove-Item -LiteralPath $FullPath -Recurse -Force -ErrorAction Stop
-      return
-    } catch {
-      $LastError = $_.Exception.Message
-      if ($Attempt -lt 3) {
-        Start-Sleep -Seconds $Attempt
-      }
-    }
-  }
-
-  $Message = "Failed to remove $FullPath after retries: $LastError"
-  if ($BestEffort) {
-    Write-Warning $Message
-    return
-  }
-
-  throw $Message
-}
-
-function Backup-PathWithRetry([string]$From, [string]$To) {
-  $FullFrom = Resolve-FullPath $From
-  $FullTo = Resolve-FullPath $To
-  $LastError = $null
-
-  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
-    try {
-      # Exclude node_modules — backup is for rollback only, deps will be reinstalled
-      robocopy $FullFrom $FullTo /MIR /R:1 /W:1 /NP /NDL /NFL /XD node_modules
-      $exitCode = $LASTEXITCODE
-      if ($exitCode -gt 7) {
-        throw "robocopy backup failed with exit code $exitCode"
-      }
-      # Remove node_modules first (may be locked by npm) before removing the rest
-      Remove-Item -LiteralPath (Join-Path $FullFrom "node_modules") -Recurse -Force -ErrorAction SilentlyContinue
-      # Remove the rest (best effort — locked files may stay)
-      Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
-      # If some files remain locked, warn but continue
-      if (Test-Path $FullFrom) {
-        $remaining = (Get-ChildItem $FullFrom -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-        if ($remaining -gt 0) {
-          Write-Warning "Backup succeeded but $remaining files in $FullFrom could not be removed (still locked)."
-        }
-      }
-      return
-    } catch {
-      $LastError = $_.Exception.Message
-      if ($Attempt -lt 3) {
-        $Delay = 2 * $Attempt
-        Write-Warning "Backup attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
-        Start-Sleep -Seconds $Delay
-      }
-    }
-  }
-
-  throw "Failed to backup $FullFrom to $FullTo after 3 retries: $LastError"
-}
-
-function Deploy-PathWithRetry([string]$From, [string]$To) {
-  $FullFrom = Resolve-FullPath $From
-  $FullTo = Resolve-FullPath $To
-
-  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
-    try {
-      # Exclude node_modules from mirror — deps handled by pnpm install during start
-      robocopy $FullFrom $FullTo /MIR /R:2 /W:2 /NP /NDL /NFL /XD node_modules
-      $exitCode = $LASTEXITCODE
-      if ($exitCode -gt 7) {
-        throw "robocopy deploy failed with exit code $exitCode"
-      }
-      # Remove stale node_modules from target (best effort)
-      Remove-Item -LiteralPath (Join-Path $FullTo "node_modules") -Recurse -Force -ErrorAction SilentlyContinue
-      Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
-      return
-    } catch {
-      $LastError = $_.Exception.Message
-      if ($Attempt -lt 3) {
-        $Delay = 2 * $Attempt
-        Write-Warning "Deploy attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
-        Start-Sleep -Seconds $Delay
-      }
-    }
-  }
-
-  throw "Failed to deploy $FullFrom to $FullTo after 3 retries: $LastError"
-}
-
-function New-BackupPath([string]$BasePath) {
-  return "{0}-backup-{1}-{2}" -f $BasePath, (Get-Date -Format "yyyyMMddHHmmss"), $PID
 }
 
 function Test-PortAvailable($PortNumber) {
@@ -132,19 +22,12 @@ function Test-PortAvailable($PortNumber) {
   }
 }
 
-function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir, [switch]$BestEffort) {
-  if (-not (Test-Path $ScriptPath)) {
-    return
-  }
+function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir) {
+  if (-not (Test-Path $ScriptPath)) { return }
 
   $StopArgs = @(
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    $ScriptPath,
-    "-Port",
-    $Port
+    "-NoProfile", "-ExecutionPolicy", "Bypass",
+    "-File", $ScriptPath, "-Port", $Port
   )
   if ($UseRootDir) {
     $StopArgs += @("-RootDir", $DeployDir)
@@ -152,223 +35,105 @@ function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir, [switch]$Be
 
   & powershell.exe @StopArgs
   $StopExitCode = $LASTEXITCODE
-  if (Test-PortAvailable $Port) {
-    return
-  }
+  if (Test-PortAvailable $Port) { return if ($LASTEXITCODE -eq 0) { return } }
 
-  $Message = "stop.ps1 did not release port $Port. Exit code: $StopExitCode"
-  if ($BestEffort) {
-    Write-Warning $Message
-    return
-  }
-
-  throw $Message
+  Write-Warning "stop.ps1 did not release port $Port (exit $StopExitCode). Forcing..."
+  # Force kill anything on the port
+  try {
+    $pids = (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).OwningProcess | Select-Object -Unique
+    foreach ($p in $pids) {
+      taskkill /PID $p /T /F 2>$null
+      Start-Sleep -Milliseconds 500
+    }
+  } catch {}
 }
 
-function Invoke-RobocopyMirror([string]$From, [string]$To) {
-  New-Item -ItemType Directory -Force $To | Out-Null
-
-  $arguments = @(
-    $From,
-    $To,
-    "/MIR",
-    "/R:3",
-    "/W:2",
-    "/NFL",
-    "/NDL",
-    "/NP",
-    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist",
-    "/XF", ".env"
-  )
-
-  & robocopy @arguments
-  $exitCode = $LASTEXITCODE
-  if ($exitCode -gt 7) {
-    throw "robocopy failed with exit code $exitCode"
-  }
-}
-
-function Copy-IfExists([string]$From, [string]$To) {
-  if (Test-Path $From) {
-    Copy-Item $From $To -Force
-  }
-}
+# ---- Main ----
 
 $SourceDir = Resolve-FullPath $SourceDir
 $DeployDir = Resolve-FullPath $DeployDir
-$NewDir = "$DeployDir-new"
-$LegacyBackupDir = "$DeployDir-backup"
-$BackupDir = New-BackupPath $DeployDir
-$SourceStopScript = Join-Path $SourceDir "scripts\windows\stop.ps1"
 
 if (-not (Test-Path $SourceDir)) {
   throw "SourceDir does not exist: $SourceDir"
 }
-
 if ($DeployDir -eq $SourceDir) {
-  throw "DeployDir must be different from SourceDir to avoid deleting the runner workspace. DeployDir: $DeployDir"
+  throw "DeployDir must be different from SourceDir. DeployDir: $DeployDir"
 }
 
 Write-Host "Deploy source: $SourceDir"
 Write-Host "Deploy target: $DeployDir"
-Write-Host "Deploy backup: $BackupDir"
+Write-Host "Deploy port: $Port"
 
-if (Test-Path $NewDir) {
-  Remove-TreeWithRetry $NewDir
-}
-
-Invoke-RobocopyMirror -From $SourceDir -To $NewDir
-
-if (Test-Path $DeployDir) {
-  Copy-IfExists -From (Join-Path $DeployDir ".env") -To (Join-Path $NewDir ".env")
-  Copy-IfExists -From (Join-Path $DeployDir ".env.production") -To (Join-Path $NewDir ".env.production")
-
-  # Preserve existing database across deploys
-  $ExistingDataDir = Join-Path $DeployDir "data"
-  if (Test-Path $ExistingDataDir) {
-    New-Item -ItemType Directory -Force (Join-Path $NewDir "data") | Out-Null
-    Copy-Item (Join-Path $ExistingDataDir "*") (Join-Path $NewDir "data") -Recurse -Force -ErrorAction SilentlyContinue
-  }
-}
-
-if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewDir ".env.example"))) {
-  Copy-Item (Join-Path $NewDir ".env.example") (Join-Path $NewDir ".env") -Force
-  Write-Warning "Created .env from .env.example. Please review production secrets in $DeployDir\.env after first deploy."
-}
-
-$OldStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
+# 1. Stop existing service
 if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
+  $SourceStopScript = Join-Path $SourceDir "scripts\windows\stop.ps1"
   if (Test-Path $SourceStopScript) {
     Write-Host "Stopping existing service..."
     Invoke-StopScript -ScriptPath $SourceStopScript -UseRootDir
-  } elseif (Test-Path $OldStopScript) {
-    Write-Host "Stopping existing service..."
-    Invoke-StopScript -ScriptPath $OldStopScript
   }
 }
 
-# Clean up files that may still be locked by the old service
+# Try to clean up old node_modules before deployment
+if (Test-Path (Join-Path $DeployDir "node_modules")) {
+  Write-Host "Cleaning old node_modules..."
+  taskkill /F /IM "node.exe" 2>$null
+  Start-Sleep 2
+  cmd /c "rmdir /s /q `"$DeployDir\node_modules`" 2>nul"
+}
+
+# 2. Robocopy source → deploy (only source code, skip everything external)
+Write-Host "Copying source files..."
+$roboArgs = @(
+  $SourceDir, $DeployDir,
+  "/E",          # include subdirs
+  "/COPY:DAT",   # data, attributes, timestamps
+  "/DCOPY:T",    # directory timestamps
+  "/R:3", "/W:2",
+  "/NFL", "/NDL", "/NP",
+  "/XD",          # exclude these dirs:
+    ".git", ".github", ".codex-run", ".codegraph", ".reasonix",
+    "node_modules", "dist",
+    "frontend\dist", "backend\dist"
+  "/XF", ".env"   # exclude .env (preserve production config)
+)
+
+& robocopy @roboArgs
+$roboExit = $LASTEXITCODE
+if ($roboExit -gt 7) {
+  throw "robocopy failed with exit code $roboExit"
+}
+
+# 3. Preserve .env and data/
 if (Test-Path $DeployDir) {
-  $CodexRunDir = Join-Path $DeployDir ".codex-run"
-  if (Test-Path $CodexRunDir) {
-    Write-Host "Cleaning up old .codex-run directory..."
-    Remove-TreeWithRetry -Path $CodexRunDir -BestEffort
+  if (-not (Test-Path (Join-Path $DeployDir ".env")) -and (Test-Path (Join-Path $DeployDir ".env.example"))) {
+    Copy-Item (Join-Path $DeployDir ".env.example") (Join-Path $DeployDir ".env") -Force
+    Write-Warning "Created .env from .env.example. Review it."
   }
-
-  $DataDir = Join-Path $DeployDir "data"
-  if (Test-Path $DataDir) {
-    Get-ChildItem -Path $DataDir -Filter "*.db-wal" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path $DataDir -Filter "*.db-shm" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+  if (-not (Test-Path (Join-Path $DeployDir ".env"))) {
+    Write-Warning "No .env found. Creating from .env.example..."
+    Copy-Item (Join-Path $DeployDir ".env.example") (Join-Path $DeployDir ".env") -Force
   }
 }
 
-$PreviousDeployMoved = $false
-$NewDeployMoved = $false
+# 4. Enable corepack + start
+Set-Location $DeployDir
 
-try {
-  # Kill leftover node processes that might hold DB locks before backup
-  Get-Process -Name "node" -ErrorAction SilentlyContinue | ForEach-Object {
-    try {
-      $module = $_.MainModule.FileName
-      if ($module -match 'node') {
-        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "Killed lingering node process PID $($_.Id)"
-      }
-    } catch {
-      # Process may have exited already
-    }
-  }
-  Start-Sleep -Seconds 1
-
-  if (Test-Path $DeployDir) {
-    Backup-PathWithRetry -From $DeployDir -To $BackupDir
-    $PreviousDeployMoved = $true
-  }
-
-  Deploy-PathWithRetry -From $NewDir -To $DeployDir
-  $NewDeployMoved = $true
-
-  Set-Location $DeployDir
-
-  if (Get-Command corepack -ErrorAction SilentlyContinue) {
-    corepack enable
-    corepack prepare pnpm@9.7.0 --activate
-  }
-
-  $StartArgs = @(
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    (Join-Path $DeployDir "scripts\windows\start.ps1"),
-    "-Port",
-    $Port,
-    "-HostAddress",
-    $HostAddress
-  )
-  if ($BackendOnly) {
-    $StartArgs += "-BackendOnly"
-  }
-
-  & powershell.exe @StartArgs
-  if ($LASTEXITCODE -ne 0) {
-    throw "start.ps1 failed with exit code $LASTEXITCODE"
-  }
-
-  if (-not $KeepBackup) {
-    foreach ($CleanupPath in @($BackupDir, $LegacyBackupDir) | Select-Object -Unique) {
-      Remove-TreeWithRetry -Path $CleanupPath -BestEffort
-    }
-  }
-
-  Write-Host "Deployment finished successfully."
-} catch {
-  Write-Warning "Deployment failed: $($_.Exception.Message)"
-  Set-Location $SourceDir
-
-  if ($NewDeployMoved -and (Test-Path $SourceStopScript)) {
-    Invoke-StopScript -ScriptPath $SourceStopScript -UseRootDir -BestEffort
-  } elseif ($NewDeployMoved) {
-    $CurrentStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
-    if (Test-Path $CurrentStopScript) {
-      Invoke-StopScript -ScriptPath $CurrentStopScript -BestEffort
-    }
-  }
-
-  if ($NewDeployMoved -and (Test-Path $DeployDir)) {
-    Remove-TreeWithRetry $DeployDir
-  }
-
-  if ($PreviousDeployMoved -and (Test-Path $BackupDir)) {
-    Deploy-PathWithRetry -From $BackupDir -To $DeployDir
-  }
-
-  $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
-  if (Test-Path $RollbackStartScript) {
-    if (-not (Test-PortAvailable $Port)) {
-      Write-Warning "Skipping rollback start because port $Port is still in use."
-      throw
-    }
-
-    $RollbackStartArgs = @(
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      $RollbackStartScript,
-      "-Port",
-      $Port,
-      "-HostAddress",
-      $HostAddress,
-      "-SkipInstall",
-      "-SkipBuild"
-    )
-    if ($BackendOnly) {
-      $RollbackStartArgs += "-BackendOnly"
-    }
-
-    & powershell.exe @RollbackStartArgs
-  }
-
-  throw
+if (Get-Command corepack -ErrorAction SilentlyContinue) {
+  corepack enable
+  corepack prepare pnpm@9.7.0 --activate
 }
+
+# 5. Run start.ps1
+$StartArgs = @(
+  "-NoProfile", "-ExecutionPolicy", "Bypass",
+  "-File", (Join-Path $DeployDir "scripts\windows\start.ps1"),
+  "-Port", $Port, "-HostAddress", $HostAddress
+)
+if ($BackendOnly) { $StartArgs += "-BackendOnly" }
+
+& powershell.exe @StartArgs
+if ($LASTEXITCODE -ne 0) {
+  throw "start.ps1 failed with exit code $LASTEXITCODE"
+}
+
+Write-Host "Deployment finished successfully."
