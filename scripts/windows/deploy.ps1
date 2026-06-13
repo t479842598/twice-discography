@@ -59,7 +59,8 @@ function Backup-PathWithRetry([string]$From, [string]$To) {
 
   for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
     try {
-      robocopy $FullFrom $FullTo /MIR /R:1 /W:1 /NP /NDL /NFL
+      # Exclude node_modules — backup is for rollback only, deps will be reinstalled
+      robocopy $FullFrom $FullTo /MIR /R:1 /W:1 /NP /NDL /NFL /XD node_modules
       $exitCode = $LASTEXITCODE
       if ($exitCode -gt 7) {
         throw "robocopy backup failed with exit code $exitCode"
