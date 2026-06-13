@@ -67,6 +67,10 @@ frontend/public/media/*
 
 # Local agent / backup artifacts
 .claude/
+.lrnev/
+.reasonix/
+output/
+reasonix.toml
 frontend-backup-*/
 frontend-backup-*.tar.gz
 notion_page.html
