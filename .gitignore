@@ -21,6 +21,7 @@ temp_cookies.txt
 
 # Database
 *.db
+!data/twice.db
 *.db-journal
 *.db-shm
 *.db-wal
