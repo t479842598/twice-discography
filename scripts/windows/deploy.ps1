@@ -35,7 +35,7 @@ function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir) {
 
   & powershell.exe @StopArgs
   $StopExitCode = $LASTEXITCODE
-  if (Test-PortAvailable $Port) { return if ($LASTEXITCODE -eq 0) { return } }
+  if (Test-PortAvailable $Port) { return }
 
   Write-Warning "stop.ps1 did not release port $Port (exit $StopExitCode). Forcing..."
   # Force kill anything on the port
