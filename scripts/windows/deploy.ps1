@@ -57,19 +57,21 @@ function Move-PathWithRetry([string]$From, [string]$To) {
   $FullTo = Resolve-FullPath $To
   $LastError = $null
 
-  for ($Attempt = 1; $Attempt -le 10; $Attempt++) {
+  for ($Attempt = 1; $Attempt -le 15; $Attempt++) {
     try {
       Move-Item -LiteralPath $FullFrom -Destination $FullTo -ErrorAction Stop
       return
     } catch {
       $LastError = $_.Exception.Message
-      if ($Attempt -lt 10) {
-        Start-Sleep -Seconds 1
+      if ($Attempt -lt 15) {
+        $Delay = if ($Attempt -le 2) { 1 } elseif ($Attempt -le 5) { 2 } else { 3 }
+        Write-Warning "Move attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
+        Start-Sleep -Seconds $Delay
       }
     }
   }
 
-  throw "Failed to move $FullFrom to $FullTo after retries: $LastError"
+  throw "Failed to move $FullFrom to $FullTo after 15 retries: $LastError"
 }
 
 function New-BackupPath([string]$BasePath) {
@@ -130,7 +132,7 @@ function Invoke-RobocopyMirror([string]$From, [string]$To) {
     "/NFL",
     "/NDL",
     "/NP",
-    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist",
+    "/XD", ".git", ".github", ".codex-run", "node_modules", "dist", "frontend\dist", "backend\dist", (Join-Path $From "data"),
     "/XF", ".env"
   )
 
@@ -173,19 +175,18 @@ if (Test-Path $NewDir) {
 Invoke-RobocopyMirror -From $SourceDir -To $NewDir
 
 if (Test-Path $DeployDir) {
-  # Preserve .env from previous deploy (contains production secrets)
   Copy-IfExists -From (Join-Path $DeployDir ".env") -To (Join-Path $NewDir ".env")
-  Copy-IfExists -From (Join-Path $DeployDir ".env.production") -To (Join-Path $NewDir ".env.production")
+
+  $ExistingDataDir = Join-Path $DeployDir "data"
+  if (Test-Path $ExistingDataDir) {
+    New-Item -ItemType Directory -Force (Join-Path $NewDir "data") | Out-Null
+    Copy-Item (Join-Path $ExistingDataDir "*") (Join-Path $NewDir "data") -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }
 
 if (-not (Test-Path (Join-Path $NewDir ".env")) -and (Test-Path (Join-Path $NewDir ".env.example"))) {
   Copy-Item (Join-Path $NewDir ".env.example") (Join-Path $NewDir ".env") -Force
   Write-Warning "Created .env from .env.example. Please review production secrets in $DeployDir\.env after first deploy."
-}
-
-if (-not (Test-Path (Join-Path $NewDir ".env.production")) -and (Test-Path (Join-Path $NewDir ".env.production.example"))) {
-  Copy-Item (Join-Path $NewDir ".env.production.example") (Join-Path $NewDir ".env.production") -Force
-  Write-Warning "Created .env.production from template. Fill in R2 keys and BILI_CREDENTIAL_ENCRYPTION_KEY in $DeployDir\.env.production."
 }
 
 $OldStopScript = Join-Path $DeployDir "scripts\windows\stop.ps1"
@@ -196,6 +197,21 @@ if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
   } elseif (Test-Path $OldStopScript) {
     Write-Host "Stopping existing service..."
     Invoke-StopScript -ScriptPath $OldStopScript
+  }
+}
+
+# Clean up files that may still be locked by the old service
+if (Test-Path $DeployDir) {
+  $CodexRunDir = Join-Path $DeployDir ".codex-run"
+  if (Test-Path $CodexRunDir) {
+    Write-Host "Cleaning up old .codex-run directory..."
+    Remove-TreeWithRetry -Path $CodexRunDir -BestEffort
+  }
+
+  $DataDir = Join-Path $DeployDir "data"
+  if (Test-Path $DataDir) {
+    Get-ChildItem -Path $DataDir -Filter "*.db-wal" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $DataDir -Filter "*.db-shm" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
   }
 }
 
