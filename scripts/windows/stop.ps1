@@ -166,6 +166,7 @@ function Write-RemainingProcesses {
 }
 
 function Wait-ServiceReleased {
+  $AlreadyKilled = @{}
   for ($Attempt = 1; $Attempt -le 20; $Attempt++) {
     $RemainingRootProcesses = @(Get-RootProcessReferences)
     $RemainingPortProcesses = @(Get-PortProcessReferences)
@@ -174,8 +175,10 @@ function Wait-ServiceReleased {
     }
 
     $RemainingProcesses = @($RemainingRootProcesses + $RemainingPortProcesses) |
-      Sort-Object -Property ProcessId -Unique
+      Sort-Object -Property ProcessId -Unique |
+      Where-Object { -not $AlreadyKilled.ContainsKey([int]$_.ProcessId) }
     foreach ($Process in $RemainingProcesses) {
+      $AlreadyKilled[[int]$Process.ProcessId] = $true
       Stop-ServiceProcessFamily -Process $Process -Reason "remaining service process"
     }
 
