@@ -128,7 +128,7 @@ watch(
         fallbackBiliIframeUrl.value = playback.fallbackIframeUrl
         if (playback.videoUrl) {
           proxyVideoUrl.value = playback.videoUrl
-          playbackMessage.value = playback.quality ? t('mv.proxyReadyQuality', { quality: playback.quality }) : t('mv.proxyReady')
+          playbackMessage.value = playback.quality ? t('mv.proxyReadyQuality', { quality: biliQualityLabel(playback.quality) }) : t('mv.proxyReady')
           await nextTick()
           if (!isMobile.value) void videoRef.value?.play().catch(() => undefined)
         } else if (playback.message && playback.message !== 'ok') {
@@ -159,6 +159,23 @@ function stopVideo() {
 function localizePlaybackReason(value: string) {
   const key = playbackReasonKeys[value]
   return key ? t(key) : value
+}
+
+const BILI_QUALITY: Record<number, string> = {
+  120: '4K',
+  116: '1080P 60帧',
+  112: '1080P 高码率',
+  80: '1080P',
+  74: '720P 60帧',
+  64: '720P',
+  48: '720P',
+  32: '480P',
+  16: '360P',
+  6: '240P',
+}
+function biliQualityLabel(qn: number | null) {
+  if (qn == null) return t('mv.qualityUnknown')
+  return BILI_QUALITY[qn] || `${qn}P`
 }
 </script>
 
