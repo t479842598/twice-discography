@@ -52,26 +52,65 @@ function Remove-TreeWithRetry([string]$Path, [switch]$BestEffort) {
   throw $Message
 }
 
-function Move-PathWithRetry([string]$From, [string]$To) {
+function Backup-PathWithRetry([string]$From, [string]$To) {
   $FullFrom = Resolve-FullPath $From
   $FullTo = Resolve-FullPath $To
   $LastError = $null
 
-  for ($Attempt = 1; $Attempt -le 15; $Attempt++) {
+  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
     try {
-      Move-Item -LiteralPath $FullFrom -Destination $FullTo -ErrorAction Stop
+      robocopy $FullFrom $FullTo /MIR /R:1 /W:1 /NP /NDL /NFL
+      $exitCode = $LASTEXITCODE
+      if ($exitCode -gt 7) {
+        throw "robocopy backup failed with exit code $exitCode"
+      }
+      # Remove the original (best effort — locked files may stay)
+      Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
+      # If some files remain locked, retry removal
+      if (Test-Path $FullFrom) {
+        $remaining = (Get-ChildItem $FullFrom -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+        if ($remaining -gt 0) {
+          Write-Warning "Backup succeeded but $remaining files in $FullFrom could not be removed (still locked)."
+        }
+      }
       return
     } catch {
       $LastError = $_.Exception.Message
-      if ($Attempt -lt 15) {
-        $Delay = if ($Attempt -le 2) { 1 } elseif ($Attempt -le 5) { 2 } else { 3 }
-        Write-Warning "Move attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
+      if ($Attempt -lt 3) {
+        $Delay = 2 * $Attempt
+        Write-Warning "Backup attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
         Start-Sleep -Seconds $Delay
       }
     }
   }
 
-  throw "Failed to move $FullFrom to $FullTo after 15 retries: $LastError"
+  throw "Failed to backup $FullFrom to $FullTo after 3 retries: $LastError"
+}
+
+function Deploy-PathWithRetry([string]$From, [string]$To) {
+  $FullFrom = Resolve-FullPath $From
+  $FullTo = Resolve-FullPath $To
+
+  for ($Attempt = 1; $Attempt -le 3; $Attempt++) {
+    try {
+      robocopy $FullFrom $FullTo /MIR /R:2 /W:2 /NP /NDL /NFL
+      $exitCode = $LASTEXITCODE
+      if ($exitCode -gt 7) {
+        throw "robocopy deploy failed with exit code $exitCode"
+      }
+      Remove-Item -LiteralPath $FullFrom -Recurse -Force -ErrorAction SilentlyContinue
+      return
+    } catch {
+      $LastError = $_.Exception.Message
+      if ($Attempt -lt 3) {
+        $Delay = 2 * $Attempt
+        Write-Warning "Deploy attempt $Attempt failed: $LastError. Retrying in ${Delay}s..."
+        Start-Sleep -Seconds $Delay
+      }
+    }
+  }
+
+  throw "Failed to deploy $FullFrom to $FullTo after 3 retries: $LastError"
 }
 
 function New-BackupPath([string]$BasePath) {
@@ -214,12 +253,26 @@ $PreviousDeployMoved = $false
 $NewDeployMoved = $false
 
 try {
+  # Kill leftover node processes that might hold DB locks before backup
+  Get-Process -Name "node" -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      $module = $_.MainModule.FileName
+      if ($module -match 'node') {
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "Killed lingering node process PID $($_.Id)"
+      }
+    } catch {
+      # Process may have exited already
+    }
+  }
+  Start-Sleep -Seconds 1
+
   if (Test-Path $DeployDir) {
-    Move-PathWithRetry -From $DeployDir -To $BackupDir
+    Backup-PathWithRetry -From $DeployDir -To $BackupDir
     $PreviousDeployMoved = $true
   }
 
-  Move-PathWithRetry -From $NewDir -To $DeployDir
+  Deploy-PathWithRetry -From $NewDir -To $DeployDir
   $NewDeployMoved = $true
 
   Set-Location $DeployDir
@@ -274,7 +327,7 @@ try {
   }
 
   if ($PreviousDeployMoved -and (Test-Path $BackupDir)) {
-    Move-PathWithRetry -From $BackupDir -To $DeployDir
+    Deploy-PathWithRetry -From $BackupDir -To $DeployDir
   }
 
   $RollbackStartScript = Join-Path $DeployDir "scripts\windows\start.ps1"
