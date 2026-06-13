@@ -76,8 +76,6 @@ if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
 # Try to clean up old node_modules before deployment
 if (Test-Path (Join-Path $DeployDir "node_modules")) {
   Write-Host "Cleaning old node_modules..."
-  taskkill /F /IM "node.exe" 2>$null
-  Start-Sleep 2
   cmd /c "rmdir /s /q `"$DeployDir\node_modules`" 2>nul"
 }
 
