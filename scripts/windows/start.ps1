@@ -15,6 +15,11 @@ $PidFile = Join-Path $RunDir "twice-discography.pid"
 $RunnerFile = Join-Path $RunDir "run-backend.ps1"
 $StdoutLog = Join-Path $RunDir "twice-discography.out.log"
 $StderrLog = Join-Path $RunDir "twice-discography.err.log"
+$DependencyStampFile = if ($BackendOnly) {
+  Join-Path $RunDir "dependencies-backend.sha256"
+} else {
+  Join-Path $RunDir "dependencies.sha256"
+}
 $RunnerTrackingEnvName = "RUNNER_TRACKING_ID"
 
 function Ensure-Command($Name, $InstallHint) {
@@ -61,6 +66,65 @@ function Test-PortAvailable($PortNumber) {
   }
 }
 
+function Get-DependencyFingerprint {
+  $DependencyFiles = @(
+    (Join-Path $RootDir "package.json"),
+    (Join-Path $RootDir "pnpm-lock.yaml"),
+    (Join-Path $RootDir "pnpm-workspace.yaml"),
+    (Join-Path $RootDir "backend\package.json")
+  )
+  if (-not $BackendOnly) {
+    $DependencyFiles += (Join-Path $RootDir "frontend\package.json")
+  }
+
+  $Builder = New-Object System.Text.StringBuilder
+  foreach ($File in $DependencyFiles) {
+    if (-not (Test-Path $File)) {
+      return $null
+    }
+
+    $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $File).Hash
+    [void]$Builder.AppendLine("${File}|${Hash}")
+  }
+
+  $Bytes = [System.Text.Encoding]::UTF8.GetBytes($Builder.ToString())
+  $Digest = [System.Security.Cryptography.SHA256]::Create().ComputeHash($Bytes)
+  return ([BitConverter]::ToString($Digest) -replace '-', '').ToLowerInvariant()
+}
+
+function Test-DependencyInstallCurrent {
+  if (-not (Test-Path (Join-Path $RootDir "node_modules"))) { return $false }
+  if (-not (Test-Path (Join-Path $RootDir "backend\node_modules"))) { return $false }
+  if ((-not $BackendOnly) -and (-not (Test-Path (Join-Path $RootDir "frontend\node_modules")))) { return $false }
+  if (-not (Test-Path $DependencyStampFile)) { return $false }
+
+  $SavedFingerprint = Get-Content $DependencyStampFile -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $SavedFingerprint) { return $false }
+
+  $CurrentFingerprint = Get-DependencyFingerprint
+  if (-not $CurrentFingerprint) { return $false }
+
+  return ($SavedFingerprint.Trim() -eq $CurrentFingerprint)
+}
+
+function Remove-DirectoryWithRetry([string]$Path) {
+  if (-not (Test-Path $Path)) { return }
+
+  for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
+    try {
+      Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+    } catch {
+      Start-Sleep -Seconds 1
+    }
+
+    if (-not (Test-Path $Path)) {
+      return
+    }
+  }
+
+  throw "Failed to remove $Path after retrying."
+}
+
 Set-Location $RootDir
 New-Item -ItemType Directory -Force $RunDir | Out-Null
 
@@ -97,27 +161,32 @@ if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
   Write-Host "Created .env from .env.example. Adjust domain/port settings if needed."
 }
 
-# Always reinstall — pnpm handles no-op if up to date,
-# but if node_modules is corrupted we need a fresh install
 if (-not $SkipInstall) {
-  Write-Host "Installing dependencies..."
-  try {
+  $DependencyFingerprint = Get-DependencyFingerprint
+  if (-not (Test-DependencyInstallCurrent)) {
+    Write-Host "Installing dependencies..."
     if ($BackendOnly) {
-      Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
+      $InstallCommand = { pnpm --filter backend install --frozen-lockfile }
     } else {
-      Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+      $InstallCommand = { pnpm install --frozen-lockfile }
     }
-  } catch {
-    Write-Warning "pnpm install failed. Cleaning node_modules and retrying..."
-    cmd /c "rmdir /s /q `"$RootDir\node_modules`" 2>nul"
-    cmd /c "rmdir /s /q `"$RootDir\backend\node_modules`" 2>nul"
-    cmd /c "rmdir /s /q `"$RootDir\frontend\node_modules`" 2>nul"
-    Start-Sleep 2
-    if ($BackendOnly) {
-      Invoke-CheckedCommand { pnpm --filter backend install --frozen-lockfile }
-    } else {
-      Invoke-CheckedCommand { pnpm install --frozen-lockfile }
+
+    try {
+      Invoke-CheckedCommand $InstallCommand
+    } catch {
+      Write-Warning "pnpm install failed. Removing node_modules and retrying once..."
+      Remove-DirectoryWithRetry (Join-Path $RootDir "node_modules")
+      Remove-DirectoryWithRetry (Join-Path $RootDir "backend\node_modules")
+      Remove-DirectoryWithRetry (Join-Path $RootDir "frontend\node_modules")
+      Start-Sleep -Seconds 2
+      Invoke-CheckedCommand $InstallCommand
     }
+
+    if ($DependencyFingerprint) {
+      Set-Content -Path $DependencyStampFile -Value $DependencyFingerprint -Encoding ASCII
+    }
+  } else {
+    Write-Host "Dependencies are up to date; skipping pnpm install."
   }
 }
 
