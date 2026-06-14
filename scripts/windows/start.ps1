@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RootDir = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$RootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $RunDir = Join-Path $RootDir ".codex-run"
 $PidFile = Join-Path $RunDir "twice-discography.pid"
 $RunnerFile = Join-Path $RunDir "run-backend.ps1"
@@ -107,22 +107,96 @@ function Test-DependencyInstallCurrent {
   return ($SavedFingerprint.Trim() -eq $CurrentFingerprint)
 }
 
-function Remove-DirectoryWithRetry([string]$Path) {
-  if (-not (Test-Path $Path)) { return }
+function Resolve-SafeChildPath([string]$Path) {
+  $FullRoot = [System.IO.Path]::GetFullPath($RootDir).TrimEnd('\')
+  $FullPath = [System.IO.Path]::GetFullPath($Path)
+  if (($FullPath -ne $FullRoot) -and (-not $FullPath.StartsWith("$FullRoot\", [System.StringComparison]::OrdinalIgnoreCase))) {
+    throw "Refusing to modify path outside deploy root. Root: $FullRoot Path: $FullPath"
+  }
+
+  return $FullPath
+}
+
+function Remove-DirectoryWithRetry([string]$Path, [switch]$BestEffort) {
+  if (-not (Test-Path $Path)) { return $true }
+
+  $SafePath = Resolve-SafeChildPath $Path
+  $LastError = $null
 
   for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
     try {
-      Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+      Remove-Item -LiteralPath $SafePath -Recurse -Force -ErrorAction Stop
     } catch {
+      $LastError = $_.Exception.Message
       Start-Sleep -Seconds 1
     }
 
-    if (-not (Test-Path $Path)) {
-      return
+    if (-not (Test-Path $SafePath)) {
+      return $true
     }
   }
 
-  throw "Failed to remove $Path after retrying."
+  if ($BestEffort) {
+    Write-Warning "Could not remove stale directory yet: $SafePath. Last error: $LastError"
+    return $false
+  }
+
+  throw "Failed to remove $SafePath after retrying. Last error: $LastError"
+}
+
+function Get-StaleDependencyRoot {
+  return Resolve-SafeChildPath (Join-Path $RunDir "stale-dependencies")
+}
+
+function Move-DirectoryAside([string]$Path, [string]$Label) {
+  if (-not (Test-Path $Path)) { return $null }
+
+  $SafePath = Resolve-SafeChildPath $Path
+  $StaleRoot = Get-StaleDependencyRoot
+  New-Item -ItemType Directory -Force $StaleRoot | Out-Null
+
+  $Timestamp = Get-Date -Format "yyyyMMddHHmmss"
+  $LastError = $null
+  for ($Attempt = 1; $Attempt -le 20; $Attempt++) {
+    $Target = Join-Path $StaleRoot "$Timestamp-$PID-$Attempt-$Label"
+    if (Test-Path $Target) { continue }
+
+    try {
+      Move-Item -LiteralPath $SafePath -Destination $Target -Force -ErrorAction Stop
+      Write-Warning "Moved stale dependency directory aside: $SafePath -> $Target"
+      return $Target
+    } catch {
+      $LastError = $_.Exception.Message
+      Start-Sleep -Seconds 1
+    }
+  }
+
+  throw "Failed to move $SafePath aside before install. A process may still be using it. Last error: $LastError"
+}
+
+function Move-DependencyDirectoriesAside {
+  $MovedPaths = @()
+  $MovedPaths += Move-DirectoryAside (Join-Path $RootDir "node_modules") "root-node_modules"
+  $MovedPaths += Move-DirectoryAside (Join-Path $RootDir "backend\node_modules") "backend-node_modules"
+  if (-not $BackendOnly) {
+    $MovedPaths += Move-DirectoryAside (Join-Path $RootDir "frontend\node_modules") "frontend-node_modules"
+  }
+
+  if ($MovedPaths.Count -gt 0) {
+    Remove-Item -LiteralPath $DependencyStampFile -Force -ErrorAction SilentlyContinue
+  }
+
+  return @($MovedPaths | Where-Object { $_ })
+}
+
+function Remove-StaleDependencyDirectories {
+  $StaleRoot = Get-StaleDependencyRoot
+  if (-not (Test-Path $StaleRoot)) { return }
+
+  $StaleDirectories = @(Get-ChildItem -LiteralPath $StaleRoot -Directory -ErrorAction SilentlyContinue)
+  foreach ($Directory in $StaleDirectories) {
+    [void](Remove-DirectoryWithRetry $Directory.FullName -BestEffort)
+  }
 }
 
 Set-Location $RootDir
@@ -165,6 +239,9 @@ if (-not $SkipInstall) {
   $DependencyFingerprint = Get-DependencyFingerprint
   if (-not (Test-DependencyInstallCurrent)) {
     Write-Host "Installing dependencies..."
+    Remove-StaleDependencyDirectories
+    [void](Move-DependencyDirectoriesAside)
+
     if ($BackendOnly) {
       $InstallCommand = { pnpm --filter backend install --frozen-lockfile }
     } else {
@@ -174,10 +251,8 @@ if (-not $SkipInstall) {
     try {
       Invoke-CheckedCommand $InstallCommand
     } catch {
-      Write-Warning "pnpm install failed. Removing node_modules and retrying once..."
-      Remove-DirectoryWithRetry (Join-Path $RootDir "node_modules")
-      Remove-DirectoryWithRetry (Join-Path $RootDir "backend\node_modules")
-      Remove-DirectoryWithRetry (Join-Path $RootDir "frontend\node_modules")
+      Write-Warning "pnpm install failed after stale dependencies were isolated. Cleaning the new install and retrying once. Error: $($_.Exception.Message)"
+      [void](Move-DependencyDirectoriesAside)
       Start-Sleep -Seconds 2
       Invoke-CheckedCommand $InstallCommand
     }
@@ -185,6 +260,7 @@ if (-not $SkipInstall) {
     if ($DependencyFingerprint) {
       Set-Content -Path $DependencyStampFile -Value $DependencyFingerprint -Encoding ASCII
     }
+    Remove-StaleDependencyDirectories
   } else {
     Write-Host "Dependencies are up to date; skipping pnpm install."
   }
