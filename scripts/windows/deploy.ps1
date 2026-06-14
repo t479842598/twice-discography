@@ -22,6 +22,56 @@ function Test-PortAvailable($PortNumber) {
   }
 }
 
+function Get-DependencyManifestRelativePaths([switch]$BackendOnly) {
+  $Paths = @(
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "backend\package.json"
+  )
+  if (-not $BackendOnly) {
+    $Paths += "frontend\package.json"
+  }
+  return $Paths
+}
+
+function Test-DependencyDirectoriesPresent([string]$RootPath, [switch]$BackendOnly) {
+  $RequiredDirectories = @(
+    "node_modules",
+    "backend\node_modules"
+  )
+  if (-not $BackendOnly) {
+    $RequiredDirectories += "frontend\node_modules"
+  }
+
+  foreach ($RelativePath in $RequiredDirectories) {
+    if (-not (Test-Path (Join-Path $RootPath $RelativePath))) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
+function Test-DependencyManifestsMatch([string]$SourceRoot, [string]$TargetRoot, [switch]$BackendOnly) {
+  foreach ($RelativePath in (Get-DependencyManifestRelativePaths -BackendOnly:$BackendOnly)) {
+    $SourcePath = Join-Path $SourceRoot $RelativePath
+    $TargetPath = Join-Path $TargetRoot $RelativePath
+
+    if ((-not (Test-Path $SourcePath)) -or (-not (Test-Path $TargetPath))) {
+      return $false
+    }
+
+    $SourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $SourcePath).Hash
+    $TargetHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $TargetPath).Hash
+    if ($SourceHash -ne $TargetHash) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
 function Invoke-StopScript([string]$ScriptPath, [switch]$UseRootDir) {
   if (-not (Test-Path $ScriptPath)) { return }
 
@@ -71,6 +121,18 @@ if ($DeployDir -eq $SourceDir) {
 Write-Host "Deploy source: $SourceDir"
 Write-Host "Deploy target: $DeployDir"
 Write-Host "Deploy port: $Port"
+
+$SkipInstall = $false
+if (Test-Path $DeployDir) {
+  if (-not (Test-DependencyDirectoriesPresent -RootPath $DeployDir -BackendOnly:$BackendOnly)) {
+    Write-Host "Dependency directories missing in deploy target; deployment will run pnpm install."
+  } elseif (Test-DependencyManifestsMatch -SourceRoot $SourceDir -TargetRoot $DeployDir -BackendOnly:$BackendOnly) {
+    $SkipInstall = $true
+    Write-Host "Dependency manifests unchanged; deployment will skip pnpm install."
+  } else {
+    Write-Host "Dependency manifests changed; deployment will run pnpm install."
+  }
+}
 
 # 1. Stop existing service
 if ((Test-Path $DeployDir) -or (-not (Test-PortAvailable $Port))) {
@@ -133,6 +195,7 @@ $StartArgs = @(
   "-Port", $Port, "-HostAddress", $HostAddress
 )
 if ($BackendOnly) { $StartArgs += "-BackendOnly" }
+if ($SkipInstall) { $StartArgs += "-SkipInstall" }
 
 & powershell.exe @StartArgs
 if ($LASTEXITCODE -ne 0) {
