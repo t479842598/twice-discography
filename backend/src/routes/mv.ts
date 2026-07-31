@@ -12,8 +12,22 @@ import type { BiliPlayData, BiliViewData } from '../services/biliCredential.js'
 
 const STREAM_TOKEN_TOLERANCE_MS = 15_000
 const STREAM_TOKEN_TTL_MS = 10 * 60 * 1000
-const STREAM_MAX_REQUESTS_PER_MINUTE = 20
+const STREAM_MAX_REQUESTS_PER_MINUTE = 40
 const streamBuckets = new Map<string, { count: number; resetAt: number }>()
+// Cache resolved Bilibili target URLs per track+quality for 10 minutes.
+const streamTargetCache = new Map<string, { targetUrl: string; expiresAt: number }>()
+
+function resolveStreamTarget(trackId: string, qn: number, kind: string) {
+  const key = `${trackId}:${qn}:${kind}`
+  const cached = streamTargetCache.get(key)
+  if (cached && cached.expiresAt > Date.now()) return cached.targetUrl
+  return null
+}
+
+function cacheStreamTarget(trackId: string, qn: number, kind: string, targetUrl: string) {
+  if (streamTargetCache.size > 500) streamTargetCache.clear()
+  streamTargetCache.set(`${trackId}:${qn}:${kind}`, { targetUrl, expiresAt: Date.now() + STREAM_TOKEN_TTL_MS })
+}
 
 function isStreamAllowed(request: FastifyRequest) {
   const now = Date.now()
@@ -59,19 +73,22 @@ export async function registerMvRoutes(app: FastifyInstance) {
   // ---- Built-in video stream proxy (signed URL, rate-limited) ----
   app.get('/:trackId/stream', async (request, reply) => {
     const params = request.params as { trackId: string }
-    const query = request.query as { t?: string; exp?: string }
+    const query = request.query as { t?: string; exp?: string; qn?: string; kind?: string }
     const mv = getMvConfig(params.trackId)
     if (!mv || !mv.enabled) return reply.code(404).send({ error: 'mv_not_found' })
 
     const expiresAt = Number(query.exp ?? '0')
     const token = String(query.t ?? '')
+    const qn = Number(query.qn ?? '64')
+    const kind = query.kind === 'audio' ? 'audio' : 'video'
     const now = Date.now()
     if (
       !Number.isFinite(expiresAt) ||
+      !Number.isFinite(qn) ||
       now > expiresAt + STREAM_TOKEN_TOLERANCE_MS ||
       expiresAt > now + STREAM_TOKEN_TTL_MS + STREAM_TOKEN_TOLERANCE_MS ||
       !token ||
-      !verifyStreamToken(params.trackId, expiresAt, token)
+      !verifyStreamToken(params.trackId, qn, kind, expiresAt, token)
     ) {
       return reply.code(403).send({ error: 'invalid_stream_token' })
     }
@@ -88,28 +105,39 @@ export async function registerMvRoutes(app: FastifyInstance) {
     if (!cookie) return reply.code(502).send({ error: 'bili_credential_not_configured' })
 
     try {
-      const view = await fetchBiliJson<BiliViewData>(
-        `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`,
-        cookie,
-      )
-      if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
+      let targetUrl = resolveStreamTarget(params.trackId, qn, kind)
+      if (!targetUrl) {
+        const view = await fetchBiliJson<BiliViewData>(
+          `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`,
+          cookie,
+        )
+        if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
 
-      const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
-      const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
-      playUrl.searchParams.set('bvid', bvid)
-      playUrl.searchParams.set('cid', String(cid))
-      playUrl.searchParams.set('qn', '120')
-      playUrl.searchParams.set('fnval', '0')
-      playUrl.searchParams.set('fourk', '1')
-      playUrl.searchParams.set('platform', 'web')
+        const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
+        const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
+        playUrl.searchParams.set('bvid', bvid)
+        playUrl.searchParams.set('cid', String(cid))
+        playUrl.searchParams.set('qn', String(qn))
+        playUrl.searchParams.set('fnval', '16')
+        playUrl.searchParams.set('fnver', '0')
+        playUrl.searchParams.set('fourk', '1')
+        playUrl.searchParams.set('platform', 'web')
 
-      const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
-      if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
+        const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
+        if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
 
-      const targetUrl = play.data.durl?.[0]?.url ??
-        play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.baseUrl ??
-        play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.base_url
-      if (!targetUrl) throw new Error('bili_playurl_empty')
+        if (kind === 'audio') {
+          const audio = (play.data.dash?.audio ?? [])[0]
+          const audioUrl = audio?.baseUrl || audio?.base_url || null
+          if (!audioUrl) throw new Error('bili_playurl_empty')
+          targetUrl = audioUrl
+        } else {
+          const dashVideo = (play.data.dash?.video ?? []).find((item) => item.id === qn)
+          targetUrl = (dashVideo?.baseUrl || dashVideo?.base_url) || play.data.durl?.[0]?.url || null
+          if (!targetUrl) throw new Error('bili_playurl_empty')
+        }
+        cacheStreamTarget(params.trackId, qn, kind, targetUrl)
+      }
 
       const range = request.headers.range
       const controller = new AbortController()
@@ -199,9 +227,11 @@ export async function registerMvRoutes(app: FastifyInstance) {
 
   app.get('/:trackId/playback', async (request, reply) => {
     const params = request.params as { trackId: string }
+    const query = request.query as { qn?: string }
     const mv = getMvConfig(params.trackId)
     if (!mv || !mv.enabled) return reply.code(404).send({ error: 'mv_not_found' })
-    const playback = await resolveBiliMvPlayback(mv)
+    const parsedQn = Number(query.qn)
+    const playback = await resolveBiliMvPlayback(mv, Number.isFinite(parsedQn) ? { qn: parsedQn } : {})
     if (!playback) return reply.code(404).send({ error: 'mv_playback_not_available' })
     return { trackId: params.trackId, ...playback }
   })

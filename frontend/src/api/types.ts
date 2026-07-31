@@ -234,6 +234,9 @@ export interface MvPlaybackResponse {
   source: 'bilibili-proxy' | 'bilibili-iframe'
   quality: number | null
   videoUrl: string | null
+  audioUrl?: string | null
+  format?: 'mp4' | 'dash'
+  qualities?: Array<{ qn: number; label: string }>
   expiresAt: number | null
   fallbackIframeUrl: string
   proxyMode?: 'worker' | 'builtin' | null

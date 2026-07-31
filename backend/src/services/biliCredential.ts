@@ -55,7 +55,11 @@ export interface BiliPlayData {
   quality?: number
   accept_quality?: number[]
   durl?: Array<{ url: string; size?: number }>
-  dash?: { video?: Array<{ baseUrl?: string; base_url?: string; id?: number }> }
+  dash?: {
+    duration?: number
+    video?: Array<{ id?: number; baseUrl?: string; base_url?: string; codecs?: string }>
+    audio?: Array<{ id?: number; baseUrl?: string; base_url?: string; codecs?: string }>
+  }
 }
 
 function masterKey() {
@@ -376,17 +380,37 @@ export function streamSigningSecret() {
   )).toString('base64url')
 }
 
-export function signStreamToken(trackId: string, expiresAt: number) {
+export function signStreamToken(trackId: string, qn: number, kind: string, expiresAt: number) {
   return createHmac('sha256', streamSigningSecret())
-    .update(`${trackId}\n${expiresAt}`)
+    .update(`${trackId}\n${qn}\n${kind}\n${expiresAt}`)
     .digest('base64url')
 }
 
-export function verifyStreamToken(trackId: string, expiresAt: number, supplied: string) {
-  const expected = signStreamToken(trackId, expiresAt)
+export function verifyStreamToken(trackId: string, qn: number, kind: string, expiresAt: number, supplied: string) {
+  const expected = signStreamToken(trackId, qn, kind, expiresAt)
   const suppliedBuffer = Buffer.from(supplied)
   const expectedBuffer = Buffer.from(expected)
   return suppliedBuffer.length === expectedBuffer.length && timingSafeEqual(suppliedBuffer, expectedBuffer)
+}
+
+const QUALITY_LABELS: Record<number, string> = {
+  127: '8K 超高清',
+  126: '杜比视界',
+  125: 'HDR 真彩',
+  120: '4K 超清',
+  116: '1080P 60帧',
+  112: '1080P 高码率',
+  100: '智能修复',
+  80: '1080P',
+  74: '720P 60帧',
+  64: '720P',
+  32: '480P',
+  16: '360P',
+  6: '240P',
+}
+
+export function biliQualityLabel(qn: number) {
+  return QUALITY_LABELS[qn] || `${qn}P`
 }
 
 function signProxyUrl(targetUrl: string, referer: string, expiresAt: number, allowedOrigin: string) {
@@ -406,7 +430,7 @@ function iframeUrl(bvid: string, page: number) {
   return `https://player.bilibili.com/player.html?${params.toString()}`
 }
 
-export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
+export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: number } = {}) {
   const bvid = mv.biliBvid || mv.fallbackBiliBvid
   const page = mv.biliPage || mv.fallbackBiliPage || 1
   if (!bvid || !mv.enabled) return null
@@ -419,8 +443,11 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
       source: 'bilibili-iframe' as const,
       quality: null,
       videoUrl: null,
+      audioUrl: null,
       expiresAt: null,
       fallbackIframeUrl,
+      format: 'mp4' as const,
+      qualities: [],
       message: credentialStatus.problem || 'B站凭证未配置',
     }
   }
@@ -429,48 +456,86 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
     const view = await fetchBiliJson<BiliViewData>(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, cookie)
     if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
     const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
+    const requestedQn = options.qn ?? 120
     const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
     playUrl.searchParams.set('bvid', bvid)
     playUrl.searchParams.set('cid', String(cid))
-    playUrl.searchParams.set('qn', '120')
-    playUrl.searchParams.set('fnval', '0')
+    playUrl.searchParams.set('qn', String(requestedQn))
+    playUrl.searchParams.set('fnval', '16')
+    playUrl.searchParams.set('fnver', '0')
     playUrl.searchParams.set('fourk', '1')
     playUrl.searchParams.set('platform', 'web')
     const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
     if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
-    const targetUrl = play.data.durl?.[0]?.url ??
-      play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.baseUrl ??
-      play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.base_url
-    if (!targetUrl) throw new Error('bili_playurl_empty')
+
+    const accept = play.data.accept_quality ?? [play.data.quality ?? 64]
+    const qualities = [...new Set(accept)].sort((left, right) => right - left).map((qn) => ({ qn, label: biliQualityLabel(qn) }))
+    const availableQns = qualities.map((item) => item.qn)
+    const targetQn = availableQns.includes(requestedQn)
+      ? requestedQn
+      : availableQns.find((qn) => qn <= requestedQn) ?? availableQns[0] ?? 64
+
     const referer = `https://www.bilibili.com/video/${bvid}`
     const expiresAt = Date.now() + 10 * 60 * 1000
     const allowedOrigin = process.env.FRONTEND_ORIGIN?.split(',')[0]?.trim() || process.env.CORS_ORIGIN?.split(',')[0]?.trim() || ''
-    const externalProxyUrl = signProxyUrl(targetUrl, referer, expiresAt, allowedOrigin)
-    if (externalProxyUrl) {
-      return {
-        source: 'bilibili-proxy' as const,
-        quality: play.data.quality ?? null,
-        videoUrl: externalProxyUrl,
-        expiresAt,
-        fallbackIframeUrl,
-        proxyMode: 'worker' as const,
-        message: 'ok',
+
+    const makeBuiltinUrl = (qn: number, kind: string) => {
+      const token = signStreamToken(mv.trackId, qn, kind, expiresAt)
+      const params = new URLSearchParams({ t: token, exp: String(expiresAt), qn: String(qn), kind })
+      return `/api/mv/${encodeURIComponent(mv.trackId)}/stream?${params.toString()}`
+    }
+
+    let format: 'mp4' | 'dash' = 'mp4'
+    let videoUrl: string | null = null
+    let audioUrl: string | null = null
+    let quality = play.data.quality ?? 64
+    let proxyMode: 'worker' | 'builtin' = 'builtin'
+
+    // 1080P and above are only available as DASH streams (video+audio split).
+    const dashVideos = play.data.dash?.video ?? []
+    const dashVideo = dashVideos.find((item) => item.id === targetQn)
+    const dashAudio = (play.data.dash?.audio ?? [])[0]
+    const dashVideoRaw = dashVideo?.baseUrl || dashVideo?.base_url
+    const dashAudioRaw = dashAudio?.baseUrl || dashAudio?.base_url
+
+    if (dashVideoRaw && dashAudioRaw && targetQn >= 80) {
+      format = 'dash'
+      quality = targetQn
+      const externalVideo = signProxyUrl(dashVideoRaw, referer, expiresAt, allowedOrigin)
+      const externalAudio = signProxyUrl(dashAudioRaw, referer, expiresAt, allowedOrigin)
+      if (externalVideo && externalAudio) {
+        videoUrl = externalVideo
+        audioUrl = externalAudio
+        proxyMode = 'worker'
+      } else {
+        videoUrl = makeBuiltinUrl(targetQn, 'video')
+        audioUrl = makeBuiltinUrl(targetQn, 'audio')
+      }
+    } else {
+      const durl = play.data.durl?.[0]?.url
+      if (!durl) throw new Error('bili_playurl_empty')
+      quality = play.data.quality ?? 64
+      const external = signProxyUrl(durl, referer, expiresAt, allowedOrigin)
+      if (external) {
+        videoUrl = external
+        proxyMode = 'worker'
+      } else {
+        videoUrl = makeBuiltinUrl(quality, 'video')
       }
     }
 
-    // No external Worker configured: stream through the built-in proxy using a
-    // short-lived HMAC URL. The Bilibili cookie never leaves the server.
-    const streamToken = signStreamToken(mv.trackId, expiresAt)
-    const streamParams = new URLSearchParams({ t: streamToken, exp: String(expiresAt) })
-    const builtinVideoUrl = `/api/mv/${encodeURIComponent(mv.trackId)}/stream?${streamParams.toString()}`
+    if (!videoUrl) throw new Error('bili_playurl_empty')
 
     return {
       source: 'bilibili-proxy' as const,
-      quality: play.data.quality ?? null,
-      videoUrl: builtinVideoUrl,
+      quality,
+      videoUrl,
+      audioUrl,
+      format,
+      qualities,
       expiresAt,
       fallbackIframeUrl,
-      proxyMode: 'builtin' as const,
+      proxyMode,
       message: 'ok',
     }
   } catch (error) {
@@ -478,8 +543,11 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
       source: 'bilibili-iframe' as const,
       quality: null,
       videoUrl: null,
+      audioUrl: null,
       expiresAt: null,
       fallbackIframeUrl,
+      format: 'mp4' as const,
+      qualities: [],
       message: error instanceof Error ? error.message : String(error),
     }
   }
