@@ -236,6 +236,7 @@ export interface MvPlaybackResponse {
   videoUrl: string | null
   expiresAt: number | null
   fallbackIframeUrl: string
+  proxyMode?: 'worker' | 'builtin' | null
   message: string
 }
 

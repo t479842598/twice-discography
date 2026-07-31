@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto'
 import { getDatabase } from '../db/database.js'
 import type { MvConfigRecord } from '../db/mv.js'
 
@@ -361,6 +361,34 @@ function b64url(value: string) {
   return Buffer.from(value).toString('base64url')
 }
 
+// Built-in stream proxy signing. Prefers the Worker signing secret; when it is
+// not configured, derives a dedicated secret from the credential encryption key
+// so the built-in proxy works without extra configuration.
+export function streamSigningSecret() {
+  const configured = process.env.MV_PROXY_SIGNING_SECRET?.trim()
+  if (configured) return configured
+  return Buffer.from(hkdfSync(
+    'sha256',
+    masterKey(),
+    Buffer.from('twice-discography/mv-stream', 'utf8'),
+    Buffer.from('hmac-sha256/v1', 'utf8'),
+    32,
+  )).toString('base64url')
+}
+
+export function signStreamToken(trackId: string, expiresAt: number) {
+  return createHmac('sha256', streamSigningSecret())
+    .update(`${trackId}\n${expiresAt}`)
+    .digest('base64url')
+}
+
+export function verifyStreamToken(trackId: string, expiresAt: number, supplied: string) {
+  const expected = signStreamToken(trackId, expiresAt)
+  const suppliedBuffer = Buffer.from(supplied)
+  const expectedBuffer = Buffer.from(expected)
+  return suppliedBuffer.length === expectedBuffer.length && timingSafeEqual(suppliedBuffer, expectedBuffer)
+}
+
 function signProxyUrl(targetUrl: string, referer: string, expiresAt: number, allowedOrigin: string) {
   const secret = process.env.MV_PROXY_SIGNING_SECRET?.trim()
   const base = process.env.MV_PROXY_BASE_URL?.trim()?.replace(/\/+$/, '')
@@ -418,23 +446,31 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord) {
     const expiresAt = Date.now() + 10 * 60 * 1000
     const allowedOrigin = process.env.FRONTEND_ORIGIN?.split(',')[0]?.trim() || process.env.CORS_ORIGIN?.split(',')[0]?.trim() || ''
     const externalProxyUrl = signProxyUrl(targetUrl, referer, expiresAt, allowedOrigin)
-    if (!externalProxyUrl) {
+    if (externalProxyUrl) {
       return {
-        source: 'bilibili-iframe' as const,
+        source: 'bilibili-proxy' as const,
         quality: play.data.quality ?? null,
-        videoUrl: null,
-        expiresAt: null,
+        videoUrl: externalProxyUrl,
+        expiresAt,
         fallbackIframeUrl,
-        message: 'mv_proxy_not_configured',
+        proxyMode: 'worker' as const,
+        message: 'ok',
       }
     }
+
+    // No external Worker configured: stream through the built-in proxy using a
+    // short-lived HMAC URL. The Bilibili cookie never leaves the server.
+    const streamToken = signStreamToken(mv.trackId, expiresAt)
+    const streamParams = new URLSearchParams({ t: streamToken, exp: String(expiresAt) })
+    const builtinVideoUrl = `/api/mv/${encodeURIComponent(mv.trackId)}/stream?${streamParams.toString()}`
 
     return {
       source: 'bilibili-proxy' as const,
       quality: play.data.quality ?? null,
-      videoUrl: externalProxyUrl,
+      videoUrl: builtinVideoUrl,
       expiresAt,
       fallbackIframeUrl,
+      proxyMode: 'builtin' as const,
       message: 'ok',
     }
   } catch (error) {

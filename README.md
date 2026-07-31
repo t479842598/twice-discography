@@ -7,6 +7,12 @@
 
 ## 更新日志
 
+### 2026-07-31（安全加固补充）
+
+- **MV 高清播放恢复：** 未配置 Cloudflare Worker 时自动启用内置流代理，后端用已保存的 B站凭证解析并转发视频，Cookie 仍不下发浏览器；无需额外部署即可高清播放。
+- 内置流代理使用 10 分钟有效期的 HMAC 签名 URL，伪造/缺失/过期签名均返回 403，并按 IP 限速、支持 Range 断点、响应 `Cache-Control: private`。
+- B站凭证保存校验更精确：缺少 `SESSDATA` 时明确提示原因和正确获取方式（HttpOnly Cookie 需用 `pnpm grab-bili-cookie` 或 DevTools 复制）。
+
 ### 2026-07-31
 
 - **安全加固：** 移除后台默认弱密码回退，首次部署时 `ADMIN_DEFAULT_PASSWORD` 必填且至少 12 位；已有管理员账号的密码不会被启动过程修改。

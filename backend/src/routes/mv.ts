@@ -1,6 +1,38 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { getMvConfig, listHomeFeaturedMvs } from '../db/mv.js'
-import { resolveBiliMvPlayback, USER_AGENT } from '../services/biliCredential.js'
+import {
+  fetchBiliJson,
+  getBiliCookie,
+  resolveBiliMvPlayback,
+  signStreamToken,
+  USER_AGENT,
+  verifyStreamToken,
+} from '../services/biliCredential.js'
+import type { BiliPlayData, BiliViewData } from '../services/biliCredential.js'
+
+const STREAM_TOKEN_TOLERANCE_MS = 15_000
+const STREAM_TOKEN_TTL_MS = 10 * 60 * 1000
+const STREAM_MAX_REQUESTS_PER_MINUTE = 20
+const streamBuckets = new Map<string, { count: number; resetAt: number }>()
+
+function isStreamAllowed(request: FastifyRequest) {
+  const now = Date.now()
+  if (streamBuckets.size > 1000) {
+    for (const [key, bucket] of streamBuckets) {
+      if (bucket.resetAt <= now) streamBuckets.delete(key)
+    }
+  }
+
+  const ip = request.ip
+  const bucket = streamBuckets.get(ip)
+  if (!bucket || bucket.resetAt <= now) {
+    streamBuckets.set(ip, { count: 1, resetAt: now + 60_000 })
+    return true
+  }
+  if (bucket.count >= STREAM_MAX_REQUESTS_PER_MINUTE) return false
+  bucket.count += 1
+  return true
+}
 
 
 function isAllowedCoverHost(hostname: string) {
@@ -24,6 +56,96 @@ function publicMv(mv: NonNullable<ReturnType<typeof getMvConfig>>) {
 }
 
 export async function registerMvRoutes(app: FastifyInstance) {
+  // ---- Built-in video stream proxy (signed URL, rate-limited) ----
+  app.get('/:trackId/stream', async (request, reply) => {
+    const params = request.params as { trackId: string }
+    const query = request.query as { t?: string; exp?: string }
+    const mv = getMvConfig(params.trackId)
+    if (!mv || !mv.enabled) return reply.code(404).send({ error: 'mv_not_found' })
+
+    const expiresAt = Number(query.exp ?? '0')
+    const token = String(query.t ?? '')
+    const now = Date.now()
+    if (
+      !Number.isFinite(expiresAt) ||
+      now > expiresAt + STREAM_TOKEN_TOLERANCE_MS ||
+      expiresAt > now + STREAM_TOKEN_TTL_MS + STREAM_TOKEN_TOLERANCE_MS ||
+      !token ||
+      !verifyStreamToken(params.trackId, expiresAt, token)
+    ) {
+      return reply.code(403).send({ error: 'invalid_stream_token' })
+    }
+
+    if (!isStreamAllowed(request)) {
+      return reply.code(429).send({ error: 'stream_rate_limited' })
+    }
+
+    const bvid = mv.biliBvid || mv.fallbackBiliBvid
+    const page = mv.biliPage || mv.fallbackBiliPage || 1
+    if (!bvid) return reply.code(404).send({ error: 'mv_has_no_bili_video' })
+
+    const cookie = getBiliCookie()
+    if (!cookie) return reply.code(502).send({ error: 'bili_credential_not_configured' })
+
+    try {
+      const view = await fetchBiliJson<BiliViewData>(
+        `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`,
+        cookie,
+      )
+      if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
+
+      const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
+      const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
+      playUrl.searchParams.set('bvid', bvid)
+      playUrl.searchParams.set('cid', String(cid))
+      playUrl.searchParams.set('qn', '120')
+      playUrl.searchParams.set('fnval', '0')
+      playUrl.searchParams.set('fourk', '1')
+      playUrl.searchParams.set('platform', 'web')
+
+      const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
+      if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
+
+      const targetUrl = play.data.durl?.[0]?.url ??
+        play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.baseUrl ??
+        play.data.dash?.video?.find((v) => v.baseUrl || v.base_url)?.base_url
+      if (!targetUrl) throw new Error('bili_playurl_empty')
+
+      const range = request.headers.range
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 15_000)
+      let response: Response
+      try {
+        response = await fetch(targetUrl, {
+          signal: controller.signal,
+          redirect: 'manual',
+          headers: {
+            referer: `https://www.bilibili.com/video/${bvid}`,
+            'user-agent': USER_AGENT,
+            ...(range ? { range } : {}),
+          },
+        })
+      } finally {
+        clearTimeout(timeout)
+      }
+      if (!response.ok || !response.body) {
+        return reply.code(502).send({ error: 'bili_stream_failed' })
+      }
+
+      for (const header of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+        const value = response.headers.get(header)
+        if (value) reply.header(header, value)
+      }
+      reply.header('cache-control', 'private, max-age=3600')
+      return reply.send(response.body)
+    } catch (error) {
+      return reply.code(502).send({
+        error: 'bili_stream_failed',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  })
+
   app.get('/cover-proxy', async (request, reply) => {
     const query = request.query as { url?: string }
     if (!query.url) return reply.code(400).send({ error: 'missing_url' })
