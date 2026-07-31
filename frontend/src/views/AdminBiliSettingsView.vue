@@ -37,6 +37,10 @@
           </p>
         </div>
 
+        <n-alert type="warning" :show-icon="true" class="admin-cookie-hint">
+          <template #default>{{ t('admin.bili.error.missingSessdata') }}</template>
+        </n-alert>
+
         <n-input
           v-model:value="cookie"
           class="admin-cookie-input"
@@ -156,6 +160,7 @@ async function verifyCookie() {
 
 function localizeBiliMessage(value: string | null | undefined) {
   if (!value) return ''
+  if (value.startsWith('incomplete_bili_cookie:')) return t('admin.bili.error.missingSessdata')
   const key = biliMessageKeys[value]
   if (key) return t(key)
 

@@ -109,8 +109,9 @@ function normalizeCookieHeader(cookie: string) {
     cookies.set(name, value)
   }
 
-  if (REQUIRED_COOKIE_NAMES.some((name) => !cookies.has(name))) {
-    throw new Error('incomplete_bili_cookie')
+  const missing = REQUIRED_COOKIE_NAMES.filter((name) => !cookies.has(name))
+  if (missing.length) {
+    throw new Error(`incomplete_bili_cookie:${missing.join(',')}`)
   }
 
   return Array.from(cookies, ([name, value]) => `${name}=${value}`).join('; ')
