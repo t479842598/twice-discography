@@ -6,12 +6,18 @@ import { buildServer } from '../src/server.js'
 import { closeDatabase } from '../src/db/database.js'
 import { initializeDatabase } from '../src/db/init.js'
 
+const TEST_ADMIN_PASSWORD = 'test-bootstrap-password-123'
+
 describe('catalog routes', () => {
   let databasePath: string
 
   beforeEach(() => {
     databasePath = path.join(os.tmpdir(), `twice-catalog-${Date.now()}-${Math.random()}.db`)
     process.env.DATABASE_PATH = databasePath
+    process.env.ADMIN_DEFAULT_PASSWORD = TEST_ADMIN_PASSWORD
+    process.env.NODE_ENV = 'test'
+    process.env.FRONTEND_ORIGIN = 'http://localhost:5173'
+    process.env.CORS_ORIGIN = ''
     initializeDatabase()
   })
 
@@ -71,6 +77,7 @@ describe('catalog routes', () => {
 
   it('checks admin sessions without logging passive 401 errors', async () => {
     const app = buildServer()
+    await app.ready()
     const anonymousSession = await app.inject({ method: 'GET', url: '/api/admin/session' })
     const failedLogin = await app.inject({
       method: 'POST',
@@ -80,7 +87,7 @@ describe('catalog routes', () => {
     const login = await app.inject({
       method: 'POST',
       url: '/api/admin/auth/login',
-      payload: { email: 'admin', password: process.env.ADMIN_DEFAULT_PASSWORD || 'tang1234' },
+      payload: { email: 'admin', password: TEST_ADMIN_PASSWORD },
     })
     const session = await app.inject({
       method: 'GET',
@@ -96,6 +103,44 @@ describe('catalog routes', () => {
     expect(login.statusCode).toBe(200)
     expect(session.statusCode).toBe(200)
     expect(session.json().user.email).toBe('admin')
+  })
+
+  it('rejects cross-site and CSRF-less admin mutations', async () => {
+    const app = buildServer()
+    await app.ready()
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/admin/auth/login',
+      payload: { email: 'admin', password: TEST_ADMIN_PASSWORD },
+    })
+    const { csrfToken } = login.json() as { csrfToken: string }
+    const cookie = login.headers['set-cookie']
+
+    const missingToken = await app.inject({
+      method: 'POST',
+      url: '/api/admin/roles',
+      headers: { cookie },
+      payload: { id: 'reviewer', label: 'Reviewer' },
+    })
+    const invalidOrigin = await app.inject({
+      method: 'POST',
+      url: '/api/admin/roles',
+      headers: { cookie, origin: 'https://attacker.example', 'x-csrf-token': csrfToken },
+      payload: { id: 'reviewer', label: 'Reviewer' },
+    })
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/api/admin/roles',
+      headers: { cookie, origin: 'http://localhost:5173', 'x-csrf-token': csrfToken },
+      payload: { id: 'reviewer', label: 'Reviewer' },
+    })
+    await app.close()
+
+    expect(missingToken.statusCode).toBe(403)
+    expect(missingToken.json().error).toBe('invalid_csrf_token')
+    expect(invalidOrigin.statusCode).toBe(403)
+    expect(invalidOrigin.json().error).toBe('invalid_origin')
+    expect(accepted.statusCode).toBe(201)
   })
 
   it('infers member credits for solo and unit album tracks', async () => {

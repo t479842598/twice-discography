@@ -2,10 +2,24 @@
 
 > TWICE 音乐作品资料站：专辑、歌曲、MV、Solo / 小分队、MISAMO、广告曲、翻唱、成员资料与多源音乐播放。
 
-最后更新：2026-06-02  
-当前构建验证：`pnpm --filter frontend build`、`pnpm --filter backend build` 通过
+最后更新：2026-07-31  
+当前构建验证：`pnpm --filter frontend build`、`pnpm --filter backend build` 通过；后端测试 26/26 通过
 
 ## 更新日志
+
+### 2026-07-31
+
+- **安全加固：** 移除后台默认弱密码回退，首次部署时 `ADMIN_DEFAULT_PASSWORD` 必填且至少 12 位；已有管理员账号的密码不会被启动过程修改。
+- **安全加固：** 后台写接口接入会话绑定 CSRF Token 与 Origin 校验，防止跨站请求伪造；现有会话会在首次启动时失效，需要重新登录一次。
+- **安全加固：** 移除后端内置的 B站 MV 流代理（避免成为无鉴权带宽代理）；未配置 Cloudflare Worker 签名代理时自动回退官方 B站播放器。
+- **安全加固：** MV 代理 Worker 统一 v1 签名协议，目标地址白名单限制为 B站媒体 CDN，禁止跟随未验证重定向，并校验请求 Origin。
+- **安全加固：** 依赖升级至 Fastify 5 / `@fastify/static` 10 / `@fastify/cors` 11 / `@fastify/helmet` 13 / `geoip-lite` 2，并通过 override 修复 `fast-uri` 与 PostCSS 漏洞，`pnpm audit --prod` 清零（原 15 个 high）。
+- **B站凭证重构：** 凭证加密改为明确的 `bili-cookie-v2` 格式（HKDF 密钥派生、密钥指纹、AAD 绑定），不再猜测旧格式；旧记录会提示“密钥不匹配，请重新保存”，不再误报正常。
+- **B站 Cookie 导入：** `pnpm grab-bili-cookie` 改为 Playwright 读取浏览器完整 Cookie 后通过本地 stdin 加密保存，不再调用不存在的 HTTP 接口、不再发送密钥到网络。
+- **播放器统一：** Music Station 与全局播放器合并为单一 `audio` 元素，修复两个音源同时播放、歌词/音量/队列状态分裂的问题。
+- **样式清理：** 删除 `global.css` 中约 1400 行重复的旧后台样式，后台样式统一由 `admin.css` 管理，修复后台主题与响应式样式冲突。
+- **数据库路径稳定化：** 相对 `DATABASE_PATH` 优先复用已初始化的数据库，避免从不同目录启动时连接到错误的 SQLite 文件。
+- **环境变量加载修正：** 进程环境优先，`.env.production` 覆盖 `.env`，避免生产密钥被开发配置覆盖。
 
 ### 2026-06-02
 
@@ -213,8 +227,8 @@ pnpm dev
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare R2 上传凭据 | 仅配置在后端环境变量 |
 | `R2_BUCKET` | R2 bucket 名称 | 例如 `twice-music-assets` |
 | `R2_PUBLIC_BASE_URL` | R2 公开 CDN 域名 | 例如 `https://cdn2.479842598.xyz`；音频缓存与专辑封面 CDN 共用 |
-| `ADMIN_DEFAULT_PASSWORD` | 首次启动自动创建默认管理员密码 | 默认 `tang1234`，上线后请立即修改 |
-| `BILI_CREDENTIAL_ENCRYPTION_KEY` | 加密保存 B站 Cookie 的服务端密钥 | 生产环境填写随机强密钥，只放后端 |
+| `ADMIN_DEFAULT_PASSWORD` | 仅在 `admin_users` 为空时创建首个管理员的 bootstrap 密码 | 必填，至少 12 位的唯一随机值；已有管理员账号不会被改动 |
+| `BILI_CREDENTIAL_ENCRYPTION_KEY` | 加密保存 B站 Cookie 的服务端 32-byte 密钥 | base64/base64url 编码的随机 32 字节；生成命令见 `.env.example` |
 | `MV_PROXY_SIGNING_SECRET` | 后端和 Worker 共同使用的 MV 代理签名密钥 | 生产环境填写随机强密钥 |
 | `MV_PROXY_BASE_URL` | Cloudflare Worker MV 代理地址 | 例如 `https://mv-proxy.example.workers.dev` |
 | `VITE_API_BASE` | 前端请求 API 的基础地址 | 一体部署 `/api`；分离部署 `https://api.example.com/api` |
@@ -230,7 +244,7 @@ pnpm dev
 - SQLite 文件必须放在持久化目录中，否则云平台重启或重新部署后数据可能丢失。
 - R2 音频缓存只适合缓存你有权分发的音频；配置教程见 `docs/R2_MUSIC_CACHE.md`，批量预热可运行 `pnpm music:warm-r2 -- --concurrency=2`。
 - 专辑封面可运行 `pnpm --filter backend covers:r2` 上传到 R2，数据库会写入 `R2_PUBLIC_BASE_URL/album-covers/...`，前端加载失败时再回退 Apple 原图。
-- 后台默认账号为 `admin`，默认密码为 `tang1234`。只有 `admin_users` 表为空时才会自动创建，登录后建议在 `/admin/users` 新建正式账号或修改密码。
+- 首次部署时，只有 `admin_users` 表为空才会使用 `ADMIN_DEFAULT_PASSWORD` 创建 `admin`；该变量必须至少 12 位且无默认值。已有管理员账户的密码不会被启动过程修改。
 - B站 MV 高清播放不把 Cookie 下发给浏览器；后端只解析并签发短时效 Worker URL，Worker 只校验签名并转发视频 Range 请求。Worker 示例在 `workers/mv-proxy`。
 - 音乐站播放链路仍使用原来的音乐接口和可选 R2 音频缓存，不走 B站 MV 代理。
 

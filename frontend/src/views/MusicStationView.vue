@@ -22,12 +22,12 @@
           <h3>{{ currentResolved.selected.title }}</h3>
           <p>{{ currentResolved.selected.artist }}<template v-if="currentResolved.selected.album"> · {{ currentResolved.selected.album }}</template></p>
         </div>
-        <audio ref="audioRef" class="music-station-audio" controls :src="currentResolved.audioUrl" autoplay @timeupdate="syncCurrentTime" @loadedmetadata="syncCurrentTime" @seeked="syncCurrentTime" />
-        <n-button secondary type="primary" @click="openDownload(currentResolved.audioUrl)">{{ t('musicStation.download') }}</n-button>
+        <n-button secondary type="primary" :disabled="!audioStore.audioUrl" @click="audioStore.setPlaying(!audioStore.playing)">
+          {{ audioStore.playing ? t('player.pause') : t('player.play') }}
+        </n-button>
+        <n-button secondary @click="openDownload(currentResolved.audioUrl)">{{ t('musicStation.download') }}</n-button>
       </div>
 
-      <LyricsDisplay v-if="currentResolved?.lrc" :lrc="currentResolved.lrc" :current-time="currentTime" />
-      <div v-else-if="currentResolved" class="music-station-lyrics-empty">{{ t('musicStation.noLyrics') }}</div>
     </section>
 
     <section class="section">
@@ -76,18 +76,17 @@ import { computed, ref } from 'vue'
 import { api, ApiError } from '@/api/client'
 import type { MusicCandidate, MusicResolveResponse } from '@/api/types'
 import PageHeader from '@/components/common/PageHeader.vue'
-import LyricsDisplay from '@/components/player/LyricsDisplay.vue'
+import { useAudioStore } from '@/stores/audio'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+const audioStore = useAudioStore()
 const searchQuery = ref('')
 const lastQuery = ref('')
 const selectedSources = ref<string[]>([])
 const quality = ref('best')
 const results = ref<MusicCandidate[]>([])
 const currentResolved = ref<MusicResolveResponse | null>(null)
-const audioRef = ref<HTMLAudioElement | null>(null)
-const currentTime = ref(0)
 const searchLoading = ref(false)
 const resolvingKey = ref('')
 const resolveAction = ref<'play' | 'download' | ''>('')
@@ -196,17 +195,13 @@ async function resolveCandidate(candidate: MusicCandidate, action: 'play' | 'dow
 async function playCandidate(candidate: MusicCandidate) {
   const response = await resolveCandidate(candidate, 'play')
   if (response) {
-    currentTime.value = 0
     currentResolved.value = response
+    await audioStore.playResolvedMusic(response)
   }
 }
 
 function openDownload(audioUrl: string) {
   window.open(audioUrl, '_blank', 'noopener,noreferrer')
-}
-
-function syncCurrentTime() {
-  currentTime.value = audioRef.value?.currentTime ?? 0
 }
 
 async function downloadCandidate(candidate: MusicCandidate) {

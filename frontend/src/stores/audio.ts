@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/api/client'
-import type { MusicCandidate, PlaybackResponse, Track } from '@/api/types'
+import type { MusicCandidate, MusicResolveResponse, PlaybackResponse, Track } from '@/api/types'
 import { translate, type MessageKey } from '@/i18n/messages'
 import { useLocaleStore } from '@/stores/locale'
 
@@ -187,6 +187,40 @@ export const useAudioStore = defineStore('audio', () => {
     }
   }
 
+  async function playResolvedMusic(response: MusicResolveResponse) {
+    const track: Track = {
+      id: `music-station:${response.source}:${response.providerId}`,
+      albumId: null,
+      albumTitle: response.selected.album ? { zh: response.selected.album, en: response.selected.album } : null,
+      albumReleaseDate: null,
+      coverLocal: response.selected.coverUrl ?? null,
+      coverRemote: null,
+      year: null,
+      trackNo: null,
+      durationSec: response.selected.durationSec ?? null,
+      isTitle: false,
+      category: 'music-station',
+      memberIds: [],
+      language: null,
+      title: { zh: response.selected.title, en: response.selected.title },
+      note: { zh: response.selected.artist, en: response.selected.artist },
+      musicSquareQuery: response.query,
+      musicSquarePreferred: response.source,
+    }
+
+    queue.value = [track]
+    queueIndex.value = 0
+    failedSources.value = []
+    error.value = ''
+    loading.value = false
+    currentTrack.value = track
+    selected.value = response.selected
+    candidates.value = [response.selected]
+    audioUrl.value = response.audioUrl
+    lrc.value = response.lrc || ''
+    playing.value = true
+  }
+
   async function playTrackFromList(track: Track, tracks: Track[]) {
     setQueue(tracks, track)
     await playTrack(track, undefined, { keepQueue: true })
@@ -291,6 +325,7 @@ export const useAudioStore = defineStore('audio', () => {
     failedSources,
     loadTrack,
     playTrack,
+    playResolvedMusic,
     playTrackFromList,
     prefetchTrack,
     playNextCandidate,

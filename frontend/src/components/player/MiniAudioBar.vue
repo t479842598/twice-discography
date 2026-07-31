@@ -175,7 +175,7 @@
     </button>
   </div>
 
-  <n-drawer v-model:show="showQueueDrawer" placement="bottom" height="62vh" class="mini-queue-drawer">
+  <n-drawer v-model:show="showQueueDrawer" placement="bottom" height="62vh" :block-scroll="false" class="mini-queue-drawer">
     <n-drawer-content closable>
       <template #header>
         <div class="mini-queue-head">

@@ -17,10 +17,21 @@ import { ensureRuntimeMigrations } from './db/database.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true })
-// Production override: .env.production values take precedence over .env
-dotenv.config({ path: path.resolve(__dirname, '../../.env.production'), override: true })
-dotenv.config()
+function loadEnvironmentFiles() {
+  const fileValues: Record<string, string> = {}
+  for (const filename of ['.env', '.env.production']) {
+    const environmentPath = path.resolve(__dirname, `../../${filename}`)
+    if (!fs.existsSync(environmentPath)) continue
+    Object.assign(fileValues, dotenv.parse(fs.readFileSync(environmentPath)))
+  }
+
+  // Process-level variables (Render, Docker, systemd, CI, etc.) always win.
+  for (const [key, value] of Object.entries(fileValues)) {
+    if (process.env[key] === undefined) process.env[key] = value
+  }
+}
+
+loadEnvironmentFiles()
 
 function staticCacheControl(filePath: string) {
   const normalized = filePath.replace(/\\/g, '/')
@@ -36,8 +47,8 @@ function staticCacheControl(filePath: string) {
   return 'public, max-age=3600'
 }
 
-function setStaticCacheHeaders(res: { setHeader: (name: string, value: string) => void }, filePath: string) {
-  res.setHeader('Cache-Control', staticCacheControl(filePath))
+function setStaticCacheHeaders(reply: { header: (name: string, value: string) => unknown }, filePath: string) {
+  reply.header('Cache-Control', staticCacheControl(filePath))
 }
 
 export function buildServer() {
@@ -47,27 +58,30 @@ export function buildServer() {
 
   ensureRuntimeMigrations()
 
-  // 支持多个前端域名（用于前后端分离部署）
-  const frontendOrigins = process.env.FRONTEND_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
-  const corsOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) || []
-  const localDevOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000']
-  const allowedOrigins = [...new Set([...frontendOrigins, ...corsOrigins, ...localDevOrigins])]
-  const optionalOrigin = (value?: string) => {
+  const toOrigin = (value?: string) => {
     if (!value) return ''
     try {
-      return new URL(value).origin
+      return new URL(value.trim()).origin
     } catch {
       return ''
     }
   }
+  const configuredOrigins = [process.env.FRONTEND_ORIGIN, process.env.CORS_ORIGIN]
+    .flatMap((value) => value?.split(',') ?? [])
+    .map(toOrigin)
+    .filter(Boolean)
+  const localDevOrigins = process.env.NODE_ENV === 'production'
+    ? []
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000']
+  const allowedOrigins = [...new Set([...configuredOrigins, ...localDevOrigins])]
   const connectOrigins = [...new Set([
-    optionalOrigin(process.env.VITE_API_BASE),
-    optionalOrigin(process.env.MV_PROXY_BASE_URL),
+    toOrigin(process.env.VITE_API_BASE),
+    toOrigin(process.env.MV_PROXY_BASE_URL),
     ...allowedOrigins,
   ].filter(Boolean))]
 
   app.register(cors, {
-    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    origin: allowedOrigins,
     credentials: true,
   })
 

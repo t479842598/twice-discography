@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS admin_user_roles (
 CREATE TABLE IF NOT EXISTS admin_sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  csrf_token TEXT NOT NULL,
   expires_at INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );
@@ -139,6 +140,8 @@ CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at ON admin_sessions (expi
 
 CREATE TABLE IF NOT EXISTS bili_credentials (
   id TEXT PRIMARY KEY,
+  encryption_version TEXT,
+  key_id TEXT,
   encrypted_cookie TEXT NOT NULL,
   iv TEXT NOT NULL,
   auth_tag TEXT NOT NULL,

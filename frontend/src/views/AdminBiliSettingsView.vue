@@ -6,9 +6,9 @@
         <h1>{{ t('admin.bili.title') }}</h1>
         <p>{{ t('admin.bili.description') }}</p>
       </div>
-      <div class="admin-status-pill" :class="{ 'is-ok': status?.configured }">
-        <n-icon :component="status?.configured ? ShieldCheckmarkOutline : AlertCircleOutline" />
-        <span>{{ status?.configured ? t('admin.bili.configured') : t('admin.bili.notConfigured') }}</span>
+      <div class="admin-status-pill" :class="{ 'is-ok': status?.usable }">
+        <n-icon :component="status?.usable ? ShieldCheckmarkOutline : AlertCircleOutline" />
+        <span>{{ status?.usable ? t('admin.bili.configured') : t('admin.bili.notConfigured') }}</span>
       </div>
     </header>
 
@@ -23,23 +23,7 @@
         </div>
 
         <div class="admin-bili-bookmarklet">
-          <p class="admin-bili-bookmarklet-hint">{{ t('admin.bili.bookmarkletHint') }}</p>
-          <div class="admin-bili-bookmarklet-row">
-            <span>{{ t('admin.bili.dragThis') }}</span>
-            <a
-              class="admin-bili-bookmarklet-link"
-              :href="bookmarkletCode"
-              @click.prevent
-            >{{ t('admin.bili.getCookie') }}</a>
-          </div>
-          <p class="admin-bili-bookmarklet-desc">
-            <n-icon :component="InformationCircleOutline" />
-            {{ t('admin.bili.bookmarkletDesc') }}
-          </p>
-        </div>
-
-        <div class="admin-bili-bookmarklet">
-          <p class="admin-bili-bookmarklet-hint">💻 {{ t('admin.bili.cliHint') }}</p>
+          <p class="admin-bili-bookmarklet-hint">{{ t('admin.bili.cliHint') }}</p>
           <div class="admin-bili-bookmarklet-row">
             <code class="admin-bili-cli-cmd">pnpm run grab-bili-cookie</code>
             <n-button size="small" type="primary" @click="copyCliCmd">
@@ -80,8 +64,11 @@
 
       <aside class="admin-panel admin-credential-status">
         <span class="admin-health-label">{{ t('admin.dashboard.workbench.status.title') }}</span>
-        <strong>{{ t('admin.bili.configStatus', { status: status?.configured ? t('admin.bili.configured') : t('admin.bili.notConfigured') }) }}</strong>
+        <strong>{{ credentialStatusLabel }}</strong>
         <div class="admin-status-list">
+          <div v-if="translatedCredentialProblem">
+            <span>{{ translatedCredentialProblem }}</span>
+          </div>
           <div>
             <span>{{ t('admin.bili.verifyStatus', { status: translatedVerifyStatus }) }}</span>
           </div>
@@ -104,10 +91,12 @@ import type { MessageKey } from '@/i18n/messages'
 const { t } = useI18n()
 const cookie = ref('')
 const message = ref('')
-const status = ref<{ configured: boolean; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null } | null>(null)
+const status = ref<{ configured: boolean; usable: boolean; encryptionVersion: string | null; problem: string | null; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null } | null>(null)
 
-const bookmarkletJs = `javascript:(function(){var d=document;if(!d.URL.includes('bilibili.com')){alert('${t('admin.bili.bookmarkletWrongSite')}');return}var c=d.cookie;if(!c){alert('${t('admin.bili.bookmarkletNoCookie')}');return}navigator.clipboard.writeText(c).then(function(){alert('${t('admin.bili.bookmarkletCopied')}')}).catch(function(){prompt('${t('admin.bili.bookmarkletCopyManual')}',c)})})()`
-const bookmarkletCode = encodeURI(bookmarkletJs.trim().replace(/\s+/g, ' '))
+const credentialStatusLabel = computed(() => t('admin.bili.configStatus', {
+  status: status.value?.usable ? t('admin.bili.configured') : t('admin.bili.notConfigured'),
+}))
+const translatedCredentialProblem = computed(() => localizeBiliMessage(status.value?.problem))
 
 const biliMessageKeys: Record<string, MessageKey> = {
   ok: 'admin.bili.status.ok',
@@ -118,6 +107,12 @@ const biliMessageKeys: Record<string, MessageKey> = {
   bili_login_unavailable: 'admin.bili.status.loginUnavailable',
   missing_cookie: 'admin.bili.needCookie',
   missing_bili_credential_encryption_key: 'admin.bili.error.missingKey',
+  invalid_bili_credential_encryption_key: 'admin.bili.error.missingKey',
+  legacy_bili_credential: 'admin.bili.error.decryptFailed',
+  bili_credential_key_mismatch: 'admin.bili.error.decryptFailed',
+  bili_credential_decryption_failed: 'admin.bili.error.decryptFailed',
+  incomplete_bili_cookie: 'admin.bili.needCookie',
+  invalid_bili_cookie: 'admin.bili.needCookie',
   '服务端缺少 BILI_CREDENTIAL_ENCRYPTION_KEY 配置': 'admin.bili.error.missingKey',
 }
 
@@ -179,7 +174,7 @@ async function copyCliCmd() {
     message.value = t('admin.bili.cmdCopied')
     setTimeout(() => { message.value = '' }, 3000)
   } catch {
-    message.value = '复制失败，请手动复制'
+    message.value = t('admin.common.saveRetry')
   }
 }
 

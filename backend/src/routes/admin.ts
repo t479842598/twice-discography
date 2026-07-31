@@ -6,12 +6,13 @@ import { getBiliCredentialStatus, getBiliProfile, resolveBiliVideoMeta, saveBili
 import {
   clearAdminSessionCookie,
   ensureDefaultAdmin,
-  getAdminFromRequest,
+  getAdminSession,
   hashPassword,
   loginAdmin,
   logoutAdmin,
   publicAdminUser,
   requireAdmin,
+  requireAdminCsrf,
   setAdminSessionCookie,
 } from '../services/adminAuth.js'
 
@@ -22,9 +23,18 @@ function bodyObject(value: unknown) {
 export async function registerAdminRoutes(app: FastifyInstance) {
   await ensureDefaultAdmin()
 
+  app.addHook('preHandler', async (request, reply) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return
+    if (request.url.split('?')[0].endsWith('/auth/login')) return
+    if (!requireAdminCsrf(request, reply)) return reply
+  })
+
   app.get('/session', async (request) => {
-    const user = getAdminFromRequest(request)
-    return { user: user ? publicAdminUser(user) : null }
+    const session = getAdminSession(request)
+    return {
+      user: session ? publicAdminUser(session.user) : null,
+      csrfToken: session?.csrfToken ?? null,
+    }
   })
 
   app.post('/auth/login', async (request, reply) => {
@@ -34,7 +44,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const result = await loginAdmin(email, password)
     if (!result) return reply.code(401).send({ error: 'invalid_credentials', message: '账号或密码不正确' })
     setAdminSessionCookie(reply, result.session.id, result.session.expiresAt)
-    return { user: publicAdminUser(result.user) }
+    return { user: publicAdminUser(result.user), csrfToken: result.session.csrfToken }
   })
 
   app.post('/auth/logout', async (request, reply) => {

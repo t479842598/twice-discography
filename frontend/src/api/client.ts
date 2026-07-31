@@ -54,10 +54,16 @@ function normalizeStaticUrls<T>(payload: T): T {
   return normalized as T
 }
 
+let adminCsrfToken = ''
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (options.body && !headers.has('content-type')) {
     headers.set('content-type', 'application/json')
+  }
+
+  if (path.startsWith('/admin/') && !['GET', 'HEAD', 'OPTIONS'].includes((options.method || 'GET').toUpperCase()) && path !== '/admin/auth/login') {
+    if (adminCsrfToken) headers.set('x-csrf-token', adminCsrfToken)
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
@@ -72,7 +78,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(payload?.message || payload?.error || 'Request failed', response.status, payload)
   }
 
-  return normalizeStaticUrls(payload as T)
+  const normalized = normalizeStaticUrls(payload as T)
+  if (path === '/admin/session' || path === '/admin/auth/login') {
+    const csrfToken = (payload as { csrfToken?: unknown } | null)?.csrfToken
+    adminCsrfToken = typeof csrfToken === 'string' ? csrfToken : ''
+  }
+  if (path === '/admin/auth/logout') adminCsrfToken = ''
+  return normalized
 }
 
 export const api = {
@@ -114,9 +126,9 @@ export const api = {
     const query = source ? `?source=${encodeURIComponent(source)}` : ''
     return request<PlaybackResponse>(`/tracks/${encodeURIComponent(trackId)}/playback${query}`)
   },
-  adminLogin: (email: string, password: string) => request<{ user: AdminUser }>('/admin/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  adminLogin: (email: string, password: string) => request<{ user: AdminUser; csrfToken: string }>('/admin/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   adminLogout: () => request<{ ok: boolean }>('/admin/auth/logout', { method: 'POST' }),
-  adminSession: () => request<{ user: AdminUser | null }>('/admin/session'),
+  adminSession: () => request<{ user: AdminUser | null; csrfToken: string | null }>('/admin/session'),
   adminMe: () => request<{ user: AdminUser }>('/admin/me'),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
   adminCreateUser: (input: { email: string; displayName: string; password: string; roles: string[] }) => request<{ user: AdminUser }>('/admin/users', { method: 'POST', body: JSON.stringify(input) }),
@@ -138,7 +150,7 @@ export const api = {
   adminParseBiliMv: (url: string) => request<{ meta: BiliVideoMeta }>('/admin/mvs/parse-bili', { method: 'POST', body: JSON.stringify({ url }) }),
   adminSaveMv: (input: Partial<AdminMvConfig> & { trackId: string }) => request<{ mv: AdminMvConfig }>('/admin/mvs', { method: 'POST', body: JSON.stringify(input) }),
   adminBiliProfile: () => request<{ configured: boolean; profile: BiliProfile | null; message: string }>('/admin/bili-profile'),
-  adminBiliCredential: () => request<{ configured: boolean; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null }>('/admin/bili-credential'),
+  adminBiliCredential: () => request<{ configured: boolean; usable: boolean; encryptionVersion: string | null; problem: string | null; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null }>('/admin/bili-credential'),
   adminSaveBiliCredential: (cookie: string) => request('/admin/bili-credential', { method: 'PUT', body: JSON.stringify({ cookie }) }),
   adminVerifyBiliCredential: () => request<{ ok: boolean; message: string }>('/admin/bili-credential/verify', { method: 'POST' }),
   mvPlayback: (trackId: string) => request<MvPlaybackResponse>(`/mv/${encodeURIComponent(trackId)}/playback`),

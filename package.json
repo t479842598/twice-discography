@@ -18,6 +18,7 @@
     "lint": "pnpm -r run lint",
     "seed": "pnpm --filter backend seed",
     "music:warm-r2": "pnpm --filter backend music:warm-r2",
+    "bili:save": "pnpm --filter backend bili:save",
     "optimize-images": "node scripts/optimize-images.mjs",
     "verify-data": "node scripts/verify-data.mjs",
     "export-static": "node scripts/export-static.mjs",

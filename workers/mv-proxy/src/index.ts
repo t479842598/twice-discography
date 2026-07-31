@@ -3,7 +3,15 @@ export interface Env {
 }
 
 const ALLOWED_METHODS = new Set(['GET', 'HEAD'])
-const SIGNATURE_TOLERANCE_MS = 60_000
+const SIGNATURE_TOLERANCE_MS = 15_000
+const MAX_FUTURE_EXPIRY_MS = 10 * 60 * 1000
+const SIGNATURE_VERSION = 'v1'
+
+function isAllowedTargetHost(hostname: string) {
+  const normalized = hostname.toLowerCase()
+  return normalized === 'bilivideo.com' || normalized.endsWith('.bilivideo.com') ||
+    normalized === 'akamaized.net' || normalized.endsWith('.akamaized.net')
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -22,25 +30,40 @@ export default {
 
     const targetUrl = decodeBase64Url(url.searchParams.get('u'))
     const referer = decodeBase64Url(url.searchParams.get('r')) || 'https://www.bilibili.com'
+    const allowedOrigin = decodeBase64Url(url.searchParams.get('o'))
+    const version = url.searchParams.get('v') || ''
     const expiresAt = Number(url.searchParams.get('exp') || '0')
     const signature = url.searchParams.get('sig') || ''
 
-    if (!targetUrl || !signature || !Number.isFinite(expiresAt)) {
+    if (version !== SIGNATURE_VERSION || !targetUrl || !allowedOrigin || !signature || !Number.isFinite(expiresAt)) {
       return new Response('Invalid signed URL', { status: 403 })
     }
 
-    if (Date.now() > expiresAt + SIGNATURE_TOLERANCE_MS) {
+    const now = Date.now()
+    if (now > expiresAt + SIGNATURE_TOLERANCE_MS || expiresAt > now + MAX_FUTURE_EXPIRY_MS + SIGNATURE_TOLERANCE_MS) {
       return new Response('Signed URL expired', { status: 403 })
     }
 
-    const expected = await sign(`${targetUrl}\n${referer}\n${expiresAt}`, env.MV_PROXY_SIGNING_SECRET)
+    const expected = await sign(`${version}\n${targetUrl}\n${referer}\n${expiresAt}\n${allowedOrigin}`, env.MV_PROXY_SIGNING_SECRET)
     if (!timingSafeEqual(signature, expected)) {
       return new Response('Invalid signature', { status: 403 })
     }
 
-    const target = new URL(targetUrl)
-    if (!['http:', 'https:'].includes(target.protocol)) {
+    let target: URL
+    let origin: URL
+    try {
+      target = new URL(targetUrl)
+      origin = new URL(allowedOrigin)
+    } catch {
       return new Response('Invalid target URL', { status: 403 })
+    }
+    if (target.protocol !== 'https:' || !isAllowedTargetHost(target.hostname) || !['https:', 'http:'].includes(origin.protocol)) {
+      return new Response('Invalid target URL', { status: 403 })
+    }
+
+    const requestOrigin = request.headers.get('origin')
+    if (requestOrigin && requestOrigin !== origin.origin) {
+      return new Response('Origin not allowed', { status: 403 })
     }
 
     const upstreamHeaders = new Headers()
@@ -55,7 +78,7 @@ export default {
     const upstream = await fetch(target.toString(), {
       method: request.method,
       headers: upstreamHeaders,
-      redirect: 'follow',
+      redirect: 'manual',
     })
 
     const responseHeaders = new Headers()
@@ -71,7 +94,8 @@ export default {
       const value = upstream.headers.get(header)
       if (value) responseHeaders.set(header, value)
     }
-    responseHeaders.set('access-control-allow-origin', '*')
+    responseHeaders.set('access-control-allow-origin', origin.origin)
+    responseHeaders.set('vary', 'Origin')
     responseHeaders.set('access-control-expose-headers', 'Accept-Ranges, Content-Length, Content-Range, Content-Type')
     responseHeaders.set('x-content-type-options', 'nosniff')
 

@@ -1,3 +1,7 @@
 packages:
   - 'frontend'
   - 'backend'
+
+overrides:
+  fast-uri: 3.1.4
+  postcss: 8.5.25

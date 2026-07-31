@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { getDatabase } from './database.js'
 
 export type AdminRole = string
@@ -214,20 +214,22 @@ export function updateAdminUser(id: string, input: { displayName?: string; disab
 
 export function createAdminSession(userId: string, ttlMs: number) {
   const id = randomUUID()
+  const csrfToken = randomBytes(32).toString('base64url')
   const now = Date.now()
   const expiresAt = now + ttlMs
-  getDatabase().prepare('INSERT INTO admin_sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(id, userId, expiresAt, now)
-  return { id, expiresAt }
+  getDatabase().prepare('INSERT INTO admin_sessions (id, user_id, csrf_token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)').run(id, userId, csrfToken, expiresAt, now)
+  return { id, csrfToken, expiresAt }
 }
 
 export function findAdminSession(sessionId: string) {
-  const row = getDatabase().prepare('SELECT user_id, expires_at FROM admin_sessions WHERE id = ?').get(sessionId) as { user_id: string; expires_at: number } | undefined
+  const row = getDatabase().prepare('SELECT user_id, csrf_token, expires_at FROM admin_sessions WHERE id = ?').get(sessionId) as { user_id: string; csrf_token: string; expires_at: number } | undefined
   if (!row) return null
   if (row.expires_at <= Date.now()) {
     deleteAdminSession(sessionId)
     return null
   }
-  return findAdminUserById(row.user_id)
+  const user = findAdminUserById(row.user_id)
+  return user ? { user, csrfToken: row.csrf_token } : null
 }
 
 export function deleteAdminSession(sessionId: string) {
