@@ -430,7 +430,7 @@ function iframeUrl(bvid: string, page: number) {
   return `https://player.bilibili.com/player.html?${params.toString()}`
 }
 
-export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: number } = {}) {
+export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: number; format?: 'mp4' | 'dash' } = {}) {
   const bvid = mv.biliBvid || mv.fallbackBiliBvid
   const page = mv.biliPage || mv.fallbackBiliPage || 1
   if (!bvid || !mv.enabled) return null
@@ -456,12 +456,15 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
     const view = await fetchBiliJson<BiliViewData>(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, cookie)
     if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
     const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
-    const requestedQn = options.qn ?? 120
+    const requestedQn = options.qn ?? 80
+    const forceMp4 = options.format === 'mp4'
     const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
     playUrl.searchParams.set('bvid', bvid)
     playUrl.searchParams.set('cid', String(cid))
     playUrl.searchParams.set('qn', String(requestedQn))
-    playUrl.searchParams.set('fnval', '16')
+    // MP4 (durl) is only available with fnval=0 and caps at 720P; DASH
+    // (fnval=16) provides every quality including 1080P+.
+    playUrl.searchParams.set('fnval', forceMp4 ? '0' : '16')
     playUrl.searchParams.set('fnver', '0')
     playUrl.searchParams.set('fourk', '1')
     playUrl.searchParams.set('platform', 'web')
@@ -498,7 +501,8 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
     const dashVideoRaw = dashVideo?.baseUrl || dashVideo?.base_url
     const dashAudioRaw = dashAudio?.baseUrl || dashAudio?.base_url
 
-    if (dashVideoRaw && dashAudioRaw && targetQn >= 80) {
+    if (!forceMp4 && dashVideoRaw && dashAudioRaw) {
+      // DASH is used for every quality when available.
       format = 'dash'
       quality = targetQn
       const externalVideo = signProxyUrl(dashVideoRaw, referer, expiresAt, allowedOrigin)
@@ -512,6 +516,7 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
         audioUrl = makeBuiltinUrl(targetQn, 'audio')
       }
     } else {
+      // MP4 (durl) fallback used for low qualities or explicit fallback.
       const durl = play.data.durl?.[0]?.url
       if (!durl) throw new Error('bili_playurl_empty')
       quality = play.data.quality ?? 64

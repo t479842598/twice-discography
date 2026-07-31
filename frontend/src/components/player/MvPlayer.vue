@@ -12,7 +12,7 @@
         v-if="proxyVideoUrl"
         ref="videoRef"
         class="mv-player-video"
-        :src="proxyVideoUrl"
+        :src="videoSrc"
         controls
         playsinline
         :autoplay="!isMobile"
@@ -131,6 +131,8 @@ const localBiliIframeUrl = computed(() => {
   return `https://player.bilibili.com/player.html?${search.toString()}`
 })
 
+const videoSrc = computed(() => (playbackFormat.value === 'dash' ? undefined : proxyVideoUrl.value))
+
 const iframeUrl = computed(() => {
   if (proxyVideoUrl.value) return ''
   if (fallbackBiliIframeUrl.value || localBiliIframeUrl.value) return fallbackBiliIframeUrl.value || localBiliIframeUrl.value
@@ -180,6 +182,7 @@ async function applyPlayback(playback: MvPlaybackResponse) {
       playbackFormat.value = 'dash'
       proxyVideoUrl.value = playback.videoUrl
       proxyAudioUrl.value = playback.audioUrl
+      await nextTick()
       if (videoRef.value) {
         try {
           dashCleanup = await playDashStream(videoRef.value, playback.videoUrl, playback.audioUrl)
@@ -192,6 +195,7 @@ async function applyPlayback(playback: MvPlaybackResponse) {
       playbackFormat.value = 'mp4'
       proxyVideoUrl.value = playback.videoUrl
       proxyAudioUrl.value = ''
+      await nextTick()
       if (!isMobile.value) void videoRef.value?.play().catch(() => undefined)
     }
   } else if (playback.message && playback.message !== 'ok') {
@@ -202,7 +206,7 @@ async function applyPlayback(playback: MvPlaybackResponse) {
 async function fallbackToMp4() {
   if (!props.trackId) return
   try {
-    const mp4 = await api.mvPlayback(props.trackId, 64)
+    const mp4 = await api.mvPlayback(props.trackId, 64, 'mp4')
     if (mp4.videoUrl && mp4.format !== 'dash') {
       playbackFormat.value = 'mp4'
       proxyVideoUrl.value = mp4.videoUrl
@@ -219,19 +223,23 @@ async function fallbackToMp4() {
   }
 }
 
+let qualitySwitchSeq = 0
+
 async function switchQuality(qn: number) {
-  if (!props.trackId || isSwitchingQuality.value) return
+  if (!props.trackId) return
+  const seq = ++qualitySwitchSeq
   isSwitchingQuality.value = true
   try {
     const playback = await api.mvPlayback(props.trackId, qn)
+    if (seq !== qualitySwitchSeq) return
     if (playback.videoUrl) {
       teardownDash()
       await applyPlayback(playback)
     }
   } catch {
-    playbackMessage.value = t('mv.proxyFallback')
+    if (seq === qualitySwitchSeq) playbackMessage.value = t('mv.proxyFallback')
   } finally {
-    isSwitchingQuality.value = false
+    if (seq === qualitySwitchSeq) isSwitchingQuality.value = false
   }
 }
 

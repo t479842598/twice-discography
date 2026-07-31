@@ -6,6 +6,10 @@ import { createFile, MP4BoxBuffer, type ISOFile, type Movie } from 'mp4box'
  * segments are appended to the matching SourceBuffer — the same approach the
  * official Bilibili web player uses.
  *
+ * Both SourceBuffers are created before playback starts (Chrome locks the
+ * MediaSource buffer count once a track has data), then sample processing is
+ * started on both files together.
+ *
  * Returns a cleanup function; throws if MediaSource is unavailable or a stream
  * cannot be loaded so callers can fall back to MP4 playback.
  */
@@ -28,20 +32,47 @@ export async function playDashStream(
   const videoQueue = createBufferQueue()
   const audioQueue = createBufferQueue()
   const cleanupHandlers: Array<() => void> = []
-  let playbackStarted = false
 
-  const onVideoReady = () => {
-    if (!playbackStarted) {
-      playbackStarted = true
-      void videoElement.play().catch(() => undefined)
-    }
-  }
+  // Track readiness: both mp4box files must reach onReady (init parsed and
+  // SourceBuffer added) before we start sample processing / playback.
+  let resolveVideoReady: (payload: { file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] }) => void = () => undefined
+  let resolveAudioReady: (payload: { file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] }) => void = () => undefined
+  const videoReady = new Promise<{ file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] }>((resolve) => { resolveVideoReady = resolve })
+  const audioReady = audioUrl
+    ? new Promise<{ file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] }>((resolve) => { resolveAudioReady = resolve })
+    : Promise.resolve<{ file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] } | null>(null)
+
+  let videoFile: ISOFile<unknown, unknown> | null = null
+  let audioFile: ISOFile<unknown, unknown> | null = null
 
   try {
-    await Promise.all([
-      startPipe(videoUrl, mediaSource, videoQueue, 1, cleanupHandlers, onVideoReady),
-      audioUrl ? startPipe(audioUrl, mediaSource, audioQueue, 2, cleanupHandlers, undefined) : Promise.resolve(),
-    ])
+    const tasks: Array<Promise<void>> = [
+      startPipe(videoUrl, mediaSource, videoQueue, 1, cleanupHandlers, (payload) => {
+        videoFile = payload.file
+        resolveVideoReady(payload)
+      }),
+    ]
+    if (audioUrl) {
+      tasks.push(startPipe(audioUrl, mediaSource, audioQueue, 2, cleanupHandlers, (payload) => {
+        audioFile = payload.file
+        resolveAudioReady(payload)
+      }))
+    }
+
+    // Wait for both tracks to be added before appending any data or starting
+    // playback, so Chrome does not reject the second addSourceBuffer.
+    const [video, audio] = await Promise.all([videoReady, audioReady])
+    for (const init of video.inits) videoQueue.push(init)
+    if (audio) for (const init of audio.inits) audioQueue.push(init)
+    if (video) video.file.start()
+    if (audio) audio.file.start()
+    // Drain samples that were parsed before start() was reached (the pump
+    // keeps the raw data in memory instead of flushing it away).
+    if (video) video.file.processSamples(true)
+    if (audio) audio.file.processSamples(true)
+    void videoElement.play().catch(() => undefined)
+
+    await Promise.all(tasks)
   } catch (error) {
     runCleanup(cleanupHandlers, mediaSource, objectUrl, videoQueue, audioQueue)
     throw error
@@ -56,10 +87,11 @@ function startPipe(
   queue: ReturnType<typeof createBufferQueue>,
   user: number,
   cleanupHandlers: Array<() => void>,
-  onPlaybackReady?: () => void,
+  onTrackReady: (payload: { file: ISOFile<unknown, unknown>; inits: ArrayBuffer[] }) => void,
 ) {
   return new Promise<void>((resolve, reject) => {
     const file = createFile()
+    ;(file as { discardMdatData?: boolean }).discardMdatData = false
     let error: Error | null = null
 
     file.onReady = (info: Movie) => {
@@ -74,11 +106,8 @@ function startPipe(
         queue.attach(sourceBuffer)
         file.setSegmentOptions(track.id, user, { nbSamples: 1000 })
         const initializations = file.initializeSegmentation('per-track')
-        for (const init of initializations) {
-          if (init.user === user) queue.push(init.buffer)
-        }
-        file.start()
-        onPlaybackReady?.()
+        const inits = initializations.filter((init) => init.user === user).map((init) => init.buffer)
+        onTrackReady({ file, inits })
       } catch (err) {
         error = err instanceof Error ? err : new Error(String(err))
       }
@@ -140,7 +169,10 @@ async function pump(url: string, file: ReturnType<typeof createFile>) {
   }
 
   appendPending()
-  file.flush()
+  // Do NOT flush() here: flush() clears the buffered sample data, which would
+  // make getSample() fail if start()/processSamples runs later. processSamples
+  // is safe to call repeatedly and keeps the data available.
+  file.processSamples(true)
 }
 
 function runCleanup(

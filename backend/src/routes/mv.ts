@@ -227,11 +227,14 @@ export async function registerMvRoutes(app: FastifyInstance) {
 
   app.get('/:trackId/playback', async (request, reply) => {
     const params = request.params as { trackId: string }
-    const query = request.query as { qn?: string }
+    const query = request.query as { qn?: string; format?: string }
     const mv = getMvConfig(params.trackId)
     if (!mv || !mv.enabled) return reply.code(404).send({ error: 'mv_not_found' })
     const parsedQn = Number(query.qn)
-    const playback = await resolveBiliMvPlayback(mv, Number.isFinite(parsedQn) ? { qn: parsedQn } : {})
+    const playback = await resolveBiliMvPlayback(mv, {
+      ...(Number.isFinite(parsedQn) ? { qn: parsedQn } : {}),
+      ...(query.format === 'mp4' ? { format: 'mp4' as const } : {}),
+    })
     if (!playback) return reply.code(404).send({ error: 'mv_playback_not_available' })
     return { trackId: params.trackId, ...playback }
   })
