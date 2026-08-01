@@ -3,6 +3,7 @@
     <section class="admin-login-shell">
       <div class="admin-login-copy">
         <span class="admin-console-mark">TW</span>
+        <span class="admin-hero-live">{{ t('admin.dashboard.workbench.live') }}</span>
         <span class="admin-module-kicker">{{ t('admin.common.eyebrow') }}</span>
         <h1>{{ t('admin.login.title') }}</h1>
         <p>{{ t('admin.dashboard.description') }}</p>

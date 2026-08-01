@@ -12,20 +12,25 @@
 
         <nav class="admin-console-nav">
           <button
-            v-for="tab in adminTabs"
+            v-for="(tab, index) in adminTabs"
             :key="tab.name"
             type="button"
             :class="['admin-console-nav-item', `is-${tab.tone}`, { 'is-active': activeTab === tab.name }]"
             @click="activeTab = tab.name"
           >
+            <span class="admin-console-nav-led" aria-hidden="true"></span>
+            <span class="admin-console-nav-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
             <n-icon class="admin-console-nav-icon" :component="tab.icon" />
             <span>{{ tab.label }}</span>
           </button>
         </nav>
 
         <div class="admin-console-note">
-          <span>{{ t('admin.dashboard.workbench.status.title') }}</span>
-          <strong>{{ t('admin.dashboard.workbench.status.ready') }}</strong>
+          <span class="admin-console-note-led" aria-hidden="true"></span>
+          <div>
+            <span>{{ t('admin.dashboard.workbench.status.title') }}</span>
+            <strong>{{ t('admin.dashboard.workbench.status.ready') }}</strong>
+          </div>
         </div>
       </aside>
 
@@ -33,9 +38,16 @@
         <template v-if="activeTab === 'overview'">
           <section class="admin-workbench-hero">
             <div class="admin-workbench-copy">
-              <span class="admin-workbench-kicker">{{ t('admin.dashboard.workbench.updatedToday', { date: localizedToday }) }}</span>
+              <span class="admin-hero-live">{{ t('admin.dashboard.workbench.live') }}</span>
               <h1>{{ t('admin.dashboard.workbench.title') }}</h1>
               <p>{{ t('admin.dashboard.workbench.subtitle') }}</p>
+              <div class="admin-hero-eq" aria-hidden="true">
+                <span class="admin-hero-eq-bar"></span>
+                <span class="admin-hero-eq-bar"></span>
+                <span class="admin-hero-eq-bar"></span>
+                <span class="admin-hero-eq-bar"></span>
+                <span class="admin-hero-eq-bar"></span>
+              </div>
               <div class="admin-workbench-actions" :aria-label="t('admin.dashboard.workbench.action.group')">
                 <button type="button" class="admin-primary-button" @click="activeTab = 'media'">
                   <n-icon :component="VideocamOutline" />
@@ -49,7 +61,9 @@
             </div>
 
             <aside class="admin-health-card" :aria-label="t('admin.dashboard.workbench.status.title')">
-              <span class="admin-health-label">{{ t('admin.dashboard.workbench.status.title') }}</span>
+              <div class="admin-health-head">
+                <span class="admin-health-label">{{ t('admin.dashboard.workbench.status.title') }}</span>
+              </div>
               <strong>{{ t('admin.dashboard.workbench.status.ready') }}</strong>
               <p>{{ t('admin.dashboard.workbench.status.description') }}</p>
               <ul>
@@ -63,10 +77,10 @@
 
           <section class="admin-kpi-grid" :aria-label="t('admin.dashboard.workbench.kpi.group')">
             <article v-for="card in kpiCards" :key="card.title" :class="['admin-kpi-card', `is-${card.tone}`]">
-              <n-icon class="admin-kpi-icon" :component="card.icon" />
-              <span>{{ card.title }}</span>
-              <strong>{{ card.value }}</strong>
+              <span class="admin-kpi-meta"><span class="admin-kpi-led" aria-hidden="true"></span>{{ card.title }}</span>
+              <strong class="admin-kpi-value">{{ card.value }}</strong>
               <p>{{ card.description }}</p>
+              <n-icon class="admin-kpi-icon" :component="card.icon" />
             </article>
           </section>
 
@@ -190,14 +204,9 @@ type IconComponent = typeof GridOutline
 
 const route = useRoute()
 const router = useRouter()
-const { locale, t } = useI18n()
+const { t } = useI18n()
 
 const activeTab = ref<AdminTab>(tabFromRoute(route.path, route.query.tab))
-
-const localizedToday = computed(() => new Intl.DateTimeFormat(locale.value, {
-  month: 'short',
-  day: 'numeric',
-}).format(new Date()))
 
 const adminTabs = computed<Array<{ name: AdminTab; label: string; tone: Tone; icon: IconComponent }>>(() => [
   { name: 'overview', label: t('admin.dashboard.tab.overview'), tone: 'neutral', icon: GridOutline },
