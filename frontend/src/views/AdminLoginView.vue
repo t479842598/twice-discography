@@ -2,20 +2,33 @@
   <main class="page admin-page admin-login-page">
     <section class="admin-login-shell">
       <div class="admin-login-copy">
-        <span class="admin-console-mark">TW</span>
+        <div class="admin-login-brand-row">
+          <span class="admin-console-mark">TW</span>
+          <span class="admin-login-brand-name">
+            <strong>{{ t('admin.dashboard.kicker') }}</strong>
+            <span>{{ t('admin.common.eyebrow') }} · {{ t('admin.dashboard.tab.overview') }}</span>
+          </span>
+        </div>
         <span class="admin-hero-live">{{ t('admin.dashboard.workbench.live') }}</span>
-        <span class="admin-module-kicker">{{ t('admin.common.eyebrow') }}</span>
-        <h1>{{ t('admin.login.title') }}</h1>
-        <p>{{ t('admin.dashboard.description') }}</p>
+        <span class="admin-module-kicker">{{ t('admin.login.stageTitle') }}</span>
+        <h1 class="admin-login-stage-title">{{ t('admin.login.stageTitle') }}</h1>
+        <p>{{ t('admin.login.tagline') }}</p>
+        <span class="admin-login-eq" aria-hidden="true">
+          <span class="admin-login-eq-bar"></span>
+          <span class="admin-login-eq-bar"></span>
+          <span class="admin-login-eq-bar"></span>
+          <span class="admin-login-eq-bar"></span>
+          <span class="admin-login-eq-bar"></span>
+        </span>
       </div>
 
       <section class="admin-panel admin-login-panel">
-        <div class="admin-section-title">
+        <div class="admin-login-panel-head">
           <div>
             <h2>{{ t('admin.login.title') }}</h2>
             <p>{{ t('admin.dashboard.workbench.status.access') }}</p>
           </div>
-          <n-icon class="admin-section-icon" :component="LockClosedOutline" />
+          <span class="admin-login-status-led">{{ t('admin.dashboard.workbench.status.ready') }}</span>
         </div>
         <n-form class="admin-dialog-form" @submit.prevent="submitLogin">
           <n-form-item :label="t('admin.login.account')">
@@ -48,7 +61,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { KeyOutline, LockClosedOutline, LogInOutline, PersonOutline } from '@vicons/ionicons5'
+import { KeyOutline, LogInOutline, PersonOutline } from '@vicons/ionicons5'
 import { api } from '@/api/client'
 import { useI18n } from '@/i18n'
 

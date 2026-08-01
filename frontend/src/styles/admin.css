@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Righteous&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 /* ═══════════════════════════════════════════════════════════
    TWICE Discography — Admin Console
@@ -56,46 +56,48 @@
   --admin-shadow-brand: 0 8px 24px rgba(255, 77, 157, 0.28);
 
   /* type */
-  --admin-font-display: 'Space Grotesk', 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --admin-font-display: 'Righteous', 'Space Grotesk', 'Outfit', 'Noto Sans TC', 'Microsoft JhengHei', ui-sans-serif, system-ui, sans-serif;
+  --admin-font-display-fallback: 'Space Grotesk', 'Noto Sans TC', 'Microsoft JhengHei', ui-sans-serif, system-ui, sans-serif;
+  --admin-font-body: 'Outfit', 'Noto Sans TC', 'Microsoft JhengHei', ui-sans-serif, system-ui, sans-serif;
   --admin-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
 
   /* layout */
   width: min(1480px, 100%);
   max-width: 1480px;
   color: var(--admin-text);
-  font-family: 'Outfit', 'Noto Sans TC', 'Microsoft JhengHei', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--admin-font-body);
   -webkit-font-smoothing: antialiased;
 }
 
 /* ── Dark Mode — night stage ───────────────────────────── */
 :root[data-theme='dark'] .admin-page {
-  --admin-bg: #15101c;
-  --admin-bg-alt: #110d18;
-  --admin-surface: #1d1626;
-  --admin-surface-muted: #251c31;
-  --admin-surface-soft: #1a1323;
-  --admin-sidebar: #191222;
-  --admin-sidebar-soft: #211831;
+  --admin-bg: #0b0912;
+  --admin-bg-alt: #07060d;
+  --admin-surface: #141020;
+  --admin-surface-muted: #1c1628;
+  --admin-surface-soft: #100d1a;
+  --admin-sidebar: #100d1a;
+  --admin-sidebar-soft: #191224;
 
-  --admin-text: #e9ddf0;
-  --admin-heading: #faf4fd;
-  --admin-muted: #a797b5;
+  --admin-text: #efe6f6;
+  --admin-heading: #fdf8ff;
+  --admin-muted: #a092b1;
 
-  --admin-border: rgba(255, 255, 255, 0.09);
-  --admin-border-strong: rgba(255, 255, 255, 0.18);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-border-strong: rgba(255, 255, 255, 0.17);
 
   --admin-accent-1: #ff5ca8;
-  --admin-accent-2: #ffa06e;
-  --admin-accent-gradient: linear-gradient(135deg, #ff5ca8 0%, #ffa06e 100%);
+  --admin-accent-2: #ff9d6b;
+  --admin-accent-gradient: linear-gradient(135deg, #ff5ca8 0%, #ff9d6b 100%);
 
   --admin-primary: #ff70b4;
   --admin-primary-hover: #ff96c9;
   --admin-on-primary: #2a1120;
   --admin-brand: #ff5ca8;
-  --admin-brand-soft: rgba(255, 92, 168, 0.18);
+  --admin-brand-soft: rgba(255, 92, 168, 0.16);
   --admin-brand-text: #ffc2dd;
 
-  --admin-media: #3fd3e8;
+  --admin-media: #45d5ea;
   --admin-content: #4cd9a0;
   --admin-playback: #ffc04d;
   --admin-access: #b18cff;
@@ -103,10 +105,10 @@
   --admin-warning: #ffc04d;
   --admin-danger: #ff7a99;
 
-  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --admin-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
-  --admin-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.42), 0 4px 10px rgba(0, 0, 0, 0.28);
-  --admin-shadow-brand: 0 8px 26px rgba(255, 92, 168, 0.24);
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --admin-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --admin-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --admin-shadow-brand: 0 8px 26px rgba(255, 92, 168, 0.22);
 }
 
 /* ── Naive UI Overrides ────────────────────────────────── */
@@ -1555,7 +1557,7 @@
   margin-top: 6px;
 }
 
-/* ── Login Page — venue marquee ────────────────────────── */
+/* ── Login Page — stage marquee ─────────────────────────── */
 .admin-login-page {
   display: grid;
   min-height: calc(100dvh - 240px);
@@ -1564,21 +1566,25 @@
 
 .admin-login-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
-  gap: 20px;
-  width: min(1000px, 100%);
+  grid-template-columns: minmax(0, 1.05fr) minmax(380px, 440px);
+  gap: 22px;
+  width: min(1060px, 100%);
   align-items: stretch;
 }
 
+/* left stage panel */
 .admin-login-copy {
-  display: grid;
-  align-content: center;
-  gap: 16px;
-  min-height: 380px;
-  padding: 36px;
-  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  min-height: 440px;
+  padding: 44px 40px;
+  border-radius: 22px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--admin-brand) 9%, var(--admin-surface)), var(--admin-surface-soft));
+    radial-gradient(ellipse 120% 70% at 20% -10%, color-mix(in srgb, var(--admin-accent-1) 22%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 60% at 110% 110%, color-mix(in srgb, var(--admin-accent-2) 16%, transparent) 0%, transparent 55%),
+    linear-gradient(160deg, color-mix(in srgb, var(--admin-brand) 12%, var(--admin-surface)), var(--admin-surface-soft) 55%, color-mix(in srgb, var(--admin-accent-2) 7%, var(--admin-surface)));
   color: var(--admin-text);
   box-shadow: var(--admin-shadow-lg);
   position: relative;
@@ -1591,23 +1597,24 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--admin-brand) 4%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--admin-brand) 4%, transparent) 1px, transparent 1px);
-  background-size: 30px 30px;
-  mask-image: linear-gradient(135deg, #000 0%, transparent 70%);
-  -webkit-mask-image: linear-gradient(135deg, #000 0%, transparent 70%);
+    linear-gradient(color-mix(in srgb, var(--admin-brand) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--admin-brand) 5%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(120deg, #000 0%, transparent 75%);
+  -webkit-mask-image: linear-gradient(120deg, #000 0%, transparent 75%);
   pointer-events: none;
 }
 
+/* stage-light beams */
 .admin-login-copy::after {
   content: '';
   position: absolute;
-  top: -60px;
-  right: -60px;
-  width: 260px;
-  height: 260px;
+  inset: -40% -30% auto auto;
+  width: 55%;
+  aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--admin-accent-1) 18%, transparent) 0%, color-mix(in srgb, var(--admin-accent-2) 7%, transparent) 45%, transparent 70%);
+  background: conic-gradient(from 210deg, color-mix(in srgb, var(--admin-accent-1) 26%, transparent) 0deg, color-mix(in srgb, var(--admin-accent-2) 10%, transparent) 70deg, transparent 110deg);
+  filter: blur(30px);
   pointer-events: none;
 }
 
@@ -1616,31 +1623,148 @@
   z-index: 1;
 }
 
+.admin-login-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .admin-login-copy .admin-console-mark {
-  width: 52px;
-  height: 52px;
-  font-size: 17px;
+  width: 54px;
+  height: 54px;
+  font-size: 18px;
   border-radius: 15px;
+}
+
+.admin-login-brand-name {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-login-brand-name strong {
+  color: var(--admin-heading);
+  font-family: var(--admin-font-display);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.admin-login-brand-name span {
+  color: var(--admin-muted);
+  font-family: var(--admin-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
 }
 
 .admin-login-copy .admin-module-kicker {
   width: fit-content;
-  border-color: color-mix(in srgb, var(--admin-brand) 32%, var(--admin-border));
+  border-color: color-mix(in srgb, var(--admin-brand) 34%, var(--admin-border));
   background: color-mix(in srgb, var(--admin-brand) 10%, var(--admin-surface));
-  color: color-mix(in srgb, var(--admin-primary) 86%, var(--admin-heading));
+  color: var(--admin-primary);
 }
 
-.admin-login-copy h1 {
-  margin: 4px 0 0;
+/* big stage title — Righteous */
+.admin-login-stage-title {
+  margin: 2px 0 0;
+  color: var(--admin-heading);
+  font-family: var(--admin-font-display);
+  font-size: clamp(40px, 5.4vw, 64px);
+  line-height: 1.02;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 .admin-login-copy p {
+  max-width: 44ch;
+  margin: 0;
   color: var(--admin-muted);
+  font-size: 15px;
+  line-height: 1.7;
 }
 
+.admin-login-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 34px;
+  margin-top: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--admin-brand) 5%, var(--admin-surface));
+}
+
+.admin-login-eq-bar {
+  width: 4px;
+  border-radius: 2px;
+  background: var(--admin-accent-gradient);
+  transform-origin: bottom;
+  animation: admin-eq 1.15s ease-in-out infinite alternate;
+}
+
+.admin-login-eq-bar:nth-child(1) { height: 45%; animation-delay: 0s; }
+.admin-login-eq-bar:nth-child(2) { height: 90%; animation-delay: 0.18s; }
+.admin-login-eq-bar:nth-child(3) { height: 60%; animation-delay: 0.34s; }
+.admin-login-eq-bar:nth-child(4) { height: 100%; animation-delay: 0.1s; }
+.admin-login-eq-bar:nth-child(5) { height: 38%; animation-delay: 0.26s; }
+
+/* login form panel */
 .admin-login-panel {
   align-content: center;
   width: 100%;
+}
+
+.admin-login-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.admin-login-panel-head h2 {
+  margin: 0;
+  color: var(--admin-heading);
+  font-family: var(--admin-font-display);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.admin-login-panel-head p {
+  margin: 6px 0 0;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.admin-login-status-led {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--admin-success) 30%, var(--admin-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--admin-success) 8%, var(--admin-surface));
+  color: var(--admin-success);
+  font-family: var(--admin-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.admin-login-status-led::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--admin-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 16%, transparent);
+  animation: admin-led-pulse 2.4s ease-in-out infinite;
 }
 
 /* ── Split Grid (Bili settings) ────────────────────────── */

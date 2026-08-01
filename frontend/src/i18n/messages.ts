@@ -319,6 +319,9 @@ const zhCN = {
   'admin.dashboard.favorites.description': '用于预留收藏、精选内容和首页推荐管理入口。',
 
   'admin.login.title': '后台登录',
+  'admin.login.stageTitle': '演播总控台',
+  'admin.login.tagline': '媒体 · 内容 · 播放 · 权限，一站管理',
+
   'admin.login.account': '账号',
   'admin.login.accountPlaceholder': '请输入账号',
   'admin.login.password': '密码',
@@ -1010,6 +1013,9 @@ const enUS: Record<MessageKey, string> = {
   'admin.dashboard.favorites.description': 'Reserved for favorites, curated content, and home recommendations.',
 
   'admin.login.title': 'Admin Login',
+  'admin.login.stageTitle': 'Stage Control',
+  'admin.login.tagline': 'Media · Content · Playback · Access',
+
   'admin.login.account': 'Account',
   'admin.login.accountPlaceholder': 'Enter account',
   'admin.login.password': 'Password',
@@ -1455,6 +1461,9 @@ const jaJP: Record<MessageKey, string> = {
   'admin.dashboard.favorites.description': 'お気に入り、選抜コンテンツ、ホーム推薦の管理入口です。',
 
   'admin.login.title': '管理画面ログイン',
+  'admin.login.stageTitle': 'ステージコントロール',
+  'admin.login.tagline': 'メディア · コンテンツ · 再生 · 権限',
+
   'admin.login.account': 'アカウント',
   'admin.login.accountPlaceholder': 'アカウントを入力',
   'admin.login.password': 'パスワード',
@@ -1900,6 +1909,9 @@ const koKR: Record<MessageKey, string> = {
   'admin.dashboard.favorites.description': '즐겨찾기, 큐레이션 콘텐츠, 홈 추천 관리 진입점입니다.',
 
   'admin.login.title': '관리자 로그인',
+  'admin.login.stageTitle': '스테이지 컨트롤',
+  'admin.login.tagline': '미디어 · 콘텐츠 · 재생 · 권한',
+
   'admin.login.account': '계정',
   'admin.login.accountPlaceholder': '계정을 입력하세요',
   'admin.login.password': '비밀번호',
