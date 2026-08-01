@@ -12,14 +12,12 @@
 
         <nav class="admin-console-nav">
           <button
-            v-for="(tab, index) in adminTabs"
+            v-for="tab in adminTabs"
             :key="tab.name"
             type="button"
             :class="['admin-console-nav-item', `is-${tab.tone}`, { 'is-active': activeTab === tab.name }]"
             @click="activeTab = tab.name"
           >
-            <span class="admin-console-nav-led" aria-hidden="true"></span>
-            <span class="admin-console-nav-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
             <n-icon class="admin-console-nav-icon" :component="tab.icon" />
             <span>{{ tab.label }}</span>
           </button>
