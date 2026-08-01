@@ -53,6 +53,7 @@
     :yt-video-id="currentMvTrack?.ytVideoId"
     :bili-bvid="currentMvTrack?.biliBvid"
     :bili-page="currentMvTrack?.biliPage"
+    :poster="currentMvTrack ? (currentMvTrack.coverLocal || currentMvTrack.coverRemote) : null"
   />
 </template>
 

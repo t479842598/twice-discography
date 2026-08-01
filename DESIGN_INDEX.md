@@ -1,8 +1,11 @@
 # TWICE Discography 页面重设计交付索引
 
-本目录仅包含设计图/规格文档，未修改现有前端或后端页面代码。
+> ⚠️ **文档状态：已过时（SUPERSEDED）——保留作历史参考。**
+> 1. 本索引所列 `designs/01-home.md` ~ `designs/11-admin.md` 在仓库中**不存在**（`designs/` 目录已移除），不可作为实现依据。
+> 2. 下方“统一设计系统”的颜色 token（如 `--color-surface: rgba(255,255,255,.05)`、`--color-success: #10B981`、`--color-warning: #F59E0B`、`--color-danger: #F43F5E`、`--color-text-muted: #94A3B8`）与 `DESIGN_SPECS.md` §2.2 的语义 token 数值不一致，且其 Tailwind 工具类片段（`bg-gradient-to-br`、`rounded-3xl`、`backdrop-blur-xl`）与规格“不新增 Tailwind”冲突。
+> 3. **实现一律以 [`DESIGN_SPECS.md`](./DESIGN_SPECS.md) 为唯一规格**；本页仅记录早期设计方向，冲突处按 `DESIGN_SPECS.md` 执行。
 
-## 已完成设计文档
+## 已完成设计文档（历史遗留，对应文件已不存在）
 
 | 序号 | 页面/组件 | 文档 | 说明 |
 |---:|---|---|---|
@@ -18,7 +21,7 @@
 | 10 | 全屏播放器 | `designs/10-full-player.md` | 沉浸式歌词、队列、音量控制 |
 | 11 | 后台管理 | `designs/11-admin.md` | Dashboard、专辑/曲目/音源/歌词/成员/设置管理 |
 
-## 统一设计系统
+## 统一设计系统（历史草稿，数值与规格冲突处以 DESIGN_SPECS.md 为准）
 
 ### 颜色
 
@@ -104,7 +107,7 @@ rounded-full border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 
 ### 方案 C：分阶段
 
 1. 播放器音量 + 歌词体验。
-2. 首页/���辑/曲目三个主页面。
+2. 首页/专辑/曲目三个主页面。
 3. 成员/搜索/详情页。
 4. 后台页面。
 

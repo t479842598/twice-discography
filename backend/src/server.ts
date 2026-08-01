@@ -13,6 +13,7 @@ import { registerMvRoutes } from './routes/mv.js'
 import { registerTrackRoutes } from './routes/tracks.js'
 import { registerAdminRoutes } from './routes/admin.js'
 import { ensureRuntimeMigrations } from './db/database.js'
+import { cleanupMusicCache } from './services/musicCache.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -138,6 +139,11 @@ export function buildServer() {
     prefix: process.env.STATIC_PREFIX ?? '/static/',
     setHeaders: setStaticCacheHeaders,
   })
+
+  // 定期清理过期/超限的 music_cache 行（SEC-08），启动时先清一次。
+  cleanupMusicCache()
+  const cacheCleanupTimer = setInterval(cleanupMusicCache, 10 * 60 * 1000)
+  cacheCleanupTimer.unref?.()
 
   // 只在单体部署模式下提供前端静态文件
   if (serveFrontend && fs.existsSync(frontendDist)) {

@@ -1,7 +1,18 @@
 <template>
   <main class="page home-page">
     <!-- 精选 MV 轮播 -->
-    <section v-if="featuredMvs.length > 0" class="home-hero home-hero-carousel" :style="{ '--hero-image': `url(${carouselCovers.current})` }" @mouseenter="pauseCarousel" @mouseleave="resumeCarousel">
+    <section
+      v-if="featuredMvs.length > 0"
+      class="home-hero home-hero-carousel"
+      :style="{ '--hero-image': `url(${carouselCovers.current})` }"
+      :aria-label="t('home.carouselLabel')"
+      aria-roledescription="carousel"
+      tabindex="0"
+      @mouseenter="pauseCarousel"
+      @mouseleave="resumeCarousel"
+      @keydown.left.prevent="carouselPrev"
+      @keydown.right.prevent="carouselNext"
+    >
       <div class="home-hero-image" aria-hidden="true" />
       <div class="home-hero-image home-hero-image--next" :class="{ 'is-visible': carouselCovers.nextVisible }" :style="{ backgroundImage: carouselCovers.nextVisible ? `url(${carouselCovers.next})` : 'none' }" aria-hidden="true" />
       <div class="home-hero-shade" />
@@ -11,7 +22,7 @@
         <p v-if="activeCarouselMv.albumName" class="home-hero-carousel-album">{{ activeCarouselMv.albumName }}</p>
         <div class="home-hero-actions">
           <n-button type="primary" size="large" :loading="playingHero" @click="playHeroTrack(activeCarouselMv.trackId)">{{ t('home.playHero') }}</n-button>
-          <n-button class="home-hero-secondary-button" size="large" @click="openCarouselMvPlayer(activeCarouselMv)">{{ t('home.watchMv') }}</n-button>
+          <n-button class="home-hero-secondary-button" size="large" @mouseenter="idlePrewarmMv(activeCarouselMv.trackId)" @click="openCarouselMvPlayer(activeCarouselMv)">{{ t('home.watchMv') }}</n-button>
         </div>
       </div>
       <button v-if="featuredMvs.length > 1" class="home-hero-carousel-arrow home-hero-carousel-arrow--left" type="button" :aria-label="t('home.carouselPrev')" @click="carouselPrev"><svg viewBox="0 0 1024 1024" fill="none"><path d="M238 505c114 125 330 342 441 455l107-103c-37-37-344-349-345-359 63-64 247-252 325-340l-96-93L238 505z" fill="currentColor"/></svg></button>
@@ -20,11 +31,24 @@
         <button
           v-for="(mv, idx) in featuredMvs"
           :key="mv.trackId"
+          type="button"
           class="home-hero-carousel-dot"
           :class="{ 'is-active': idx === carouselIndex }"
-          :aria-label="`Slide ${idx + 1}`"
+          :aria-label="t('home.slideAria', { current: idx + 1, total: featuredMvs.length })"
+          :aria-current="idx === carouselIndex ? 'true' : undefined"
           @click="goToSlide(idx)"
         />
+        <button
+          v-if="featuredMvs.length > 1"
+          type="button"
+          class="home-hero-carousel-pause"
+          :aria-label="carouselPaused ? t('home.carouselPlay') : t('home.carouselPause')"
+          :aria-pressed="carouselPaused"
+          @click="toggleCarouselPause"
+        >
+          <svg v-if="carouselPaused" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <svg v-else viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        </button>
       </div>
     </section>
 
@@ -75,7 +99,7 @@
     </section>
 
     <!-- MvPlayer modal -->
-    <MvPlayer :show="mvPlayerShow" :title="mvPlayerTitle" :track-id="mvPlayerTrackId" :bili-bvid="mvPlayerBiliBvid" :bili-page="mvPlayerBiliPage" @update:show="mvPlayerShow = $event" />
+    <MvPlayer :show="mvPlayerShow" :title="mvPlayerTitle" :track-id="mvPlayerTrackId" :bili-bvid="mvPlayerBiliBvid" :bili-page="mvPlayerBiliPage" :poster="mvPlayerPoster" @update:show="mvPlayerShow = $event" />
 
     <n-grid :cols="statsGridCols" :x-gap="12" :y-gap="12" responsive="screen">
       <n-gi v-for="(value, key) in overview?.stats" :key="key">
@@ -186,8 +210,13 @@ const isMobile = ref(detectMobile())
 // ---- Carousel state ----
 const featuredMvs = ref<HomeFeaturedMv[]>([])
 const carouselIndex = ref(0)
+const carouselPaused = ref(false)
 let carouselTimer: ReturnType<typeof setInterval> | null = null
 const CAROUSEL_INTERVAL_MS = 5000
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 // ---- MvPlayer modal state ----
 const mvPlayerShow = ref(false)
@@ -195,6 +224,7 @@ const mvPlayerTitle = ref('')
 const mvPlayerTrackId = ref<string | null>(null)
 const mvPlayerBiliBvid = ref<string | null>(null)
 const mvPlayerBiliPage = ref<number | null>(null)
+const mvPlayerPoster = ref<string | null>(null)
 
 // ---- Fallback hero (no featured MVs) ----
 const heroFallbackCover = 'https://d1al7qj7ydfbpt.cloudfront.net/artist/twice/2ecb5a255d824a90a1f1d366c1333813-%E1%84%8A%E1%85%A5%E1%86%B7%E1%84%82%E1%85%A6%E1%84%8B%E1%85%B5%E1%86%AF.jpg'
@@ -297,6 +327,7 @@ function transitionToSlide(idx: number) {
   // start crossfade: the current slide becomes "prev" layer
   carouselPrevIndex.value = carouselIndex.value
   carouselIndex.value = idx
+  idlePrewarmMv(featuredMvs.value[idx]?.trackId)
   // after fade-in completes, hide the prev layer
   if (carouselFadeTimer != null) clearTimeout(carouselFadeTimer)
   carouselFadeTimer = setTimeout(() => {
@@ -308,6 +339,7 @@ function transitionToSlide(idx: number) {
 function startCarousel() {
   stopCarousel()
   if (featuredMvs.value.length <= 1) return
+  if (carouselPaused.value || prefersReducedMotion()) return
   carouselTimer = setInterval(() => {
     transitionToSlide((carouselIndex.value + 1) % featuredMvs.value.length)
   }, CAROUSEL_INTERVAL_MS)
@@ -330,7 +362,13 @@ function pauseCarousel() {
 }
 
 function resumeCarousel() {
-  if (featuredMvs.value.length > 1) startCarousel()
+  if (featuredMvs.value.length > 1 && !carouselPaused.value) startCarousel()
+}
+
+function toggleCarouselPause() {
+  carouselPaused.value = !carouselPaused.value
+  if (carouselPaused.value) stopCarousel()
+  else startCarousel()
 }
 
 function carouselPrev() {
@@ -359,7 +397,48 @@ function openCarouselMvPlayer(mv: HomeFeaturedMv) {
   mvPlayerTrackId.value = mv.trackId
   mvPlayerBiliBvid.value = mv.biliBvid
   mvPlayerBiliPage.value = mv.biliPage
+  mvPlayerPoster.value = coverProxyUrl(mv.coverUrl)
   mvPlayerShow.value = true
+}
+
+// ---- MV playback pre-warm (DESIGN_SPECS §6.4 方案2) ----
+// Pre-resolve the visible/featured MV so opening the player is near-instant.
+// Throttled to idle time, cancellable on unmount, and skipped for
+// save-data / reduced-motion / mobile.
+const mvPrewarmTasks = new Map<string, Promise<unknown>>()
+let mvPrewarmAbort: AbortController | null = null
+
+function shouldPrewarmMv() {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false
+  if (isMobile.value) return false
+  const network = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+  if (network?.saveData) return false
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+  return true
+}
+
+function prewarmMv(trackId: string | null | undefined) {
+  if (!trackId || !shouldPrewarmMv()) return
+  if (mvPrewarmTasks.has(trackId)) return
+  mvPrewarmAbort?.abort()
+  const controller = new AbortController()
+  mvPrewarmAbort = controller
+  const task = api.mvPlayback(trackId, 32, undefined, controller.signal).catch(() => undefined)
+  mvPrewarmTasks.set(trackId, task)
+  void task.finally(() => {
+    if (mvPrewarmTasks.get(trackId) === task) mvPrewarmTasks.delete(trackId)
+  })
+}
+
+function idlePrewarmMv(trackId: string | null | undefined) {
+  if (!trackId || !shouldPrewarmMv()) return
+  const run = () => prewarmMv(trackId)
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(run, { timeout: 5000 })
+  } else {
+    w.setTimeout(run, 1500)
+  }
 }
 
 // ---- Fallback hero logic ----
@@ -378,6 +457,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateResponsiveState)
   stopCarousel()
+  mvPrewarmAbort?.abort()
+  mvPrewarmAbort = null
 })
 
 async function loadFeaturedMvs() {
@@ -385,6 +466,7 @@ async function loadFeaturedMvs() {
     const result = await api.homeFeaturedMvs()
     featuredMvs.value = result.mvs.filter((mv) => mv.enabled)
     if (featuredMvs.value.length > 1) startCarousel()
+    idlePrewarmMv(featuredMvs.value[0]?.trackId)
   } catch {
     featuredMvs.value = []
   }
@@ -409,6 +491,7 @@ function detectMobile() {
 }
 
 async function startHeroVideo() {
+  if (prefersReducedMotion()) return
   await nextTick()
   if (!heroVideoRef.value) return
   if (heroVideoRef.value.readyState >= 2) {

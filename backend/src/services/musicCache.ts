@@ -59,3 +59,30 @@ export async function withMusicCache<T>(cacheKey: string, ttlMs: number, loader:
 export function clearMusicMemoryCache() {
   memoryCache.clear()
 }
+
+const MUSIC_CACHE_MAX_ROWS = 5_000
+
+// Delete expired rows and cap total size so the cache table cannot grow
+// without bound (SEC-08). Best-effort: cache failures must never break
+// music playback.
+export function cleanupMusicCache() {
+  try {
+    getDatabase().prepare('DELETE FROM music_cache WHERE expires_at <= ?').run(Date.now())
+
+    const row = getDatabase().prepare('SELECT COUNT(*) AS total FROM music_cache').get() as { total: number }
+    if (Number(row.total) > MUSIC_CACHE_MAX_ROWS) {
+      getDatabase().prepare(`
+        DELETE FROM music_cache WHERE cache_key IN (
+          SELECT cache_key FROM music_cache ORDER BY updated_at DESC LIMIT -1 OFFSET ?
+        )
+      `).run(MUSIC_CACHE_MAX_ROWS)
+    }
+    // Drop only expired in-memory entries so the fast path stays warm for the
+    // rest of the cache after a routine cleanup.
+    for (const [key, entry] of memoryCache) {
+      if (entry.expiresAt <= Date.now()) memoryCache.delete(key)
+    }
+  } catch {
+    // Best-effort cleanup only.
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-01T05:21:02.899Z",
+  "analyzer": "AutoAnalyzer",
+  "project_root": "C:\\Users\\Administrator\\Desktop\\twice-discography",
+  "tech_stack": [
+    {
+      "ecosystem": "node",
+      "language": "javascript",
+      "manifest": "package.json",
+      "name": "twice-discography",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "language": "typescript",
+      "manifest": "backend/package.json",
+      "name": "backend",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "language": "typescript",
+      "manifest": "frontend/package.json",
+      "name": "frontend",
+      "version": "0.1.0"
+    }
+  ],
+  "primary_language": "javascript",
+  "package_managers": [
+    "pnpm"
+  ],
+  "dependencies": {
+    "node": [
+      "@fastify/cors",
+      "@fastify/helmet",
+      "@fastify/static",
+      "@types/better-sqlite3",
+      "@types/geoip-lite",
+      "@types/node",
+      "@types/supertest",
+      "@vicons/ionicons5",
+      "@vitejs/plugin-vue",
+      "better-sqlite3",
+      "dotenv",
+      "fastify",
+      "geoip-lite",
+      "mp4box",
+      "naive-ui",
+      "pinia",
+      "playwright",
+      "supertest",
+      "tsx",
+      "typescript",
+      "vite",
+      "vitest",
+      "vue",
+      "vue-router",
+      "vue-tsc",
+      "zod"
+    ]
+  },
+  "directories": [
+    {
+      "path": ".codegraph",
+      "kind": "other"
+    },
+    {
+      "path": ".codex-run",
+      "kind": "other"
+    },
+    {
+      "path": ".github",
+      "kind": "config"
+    },
+    {
+      "path": ".pi",
+      "kind": "other"
+    },
+    {
+      "path": "backend",
+      "kind": "source"
+    },
+    {
+      "path": "backend/scripts",
+      "kind": "config"
+    },
+    {
+      "path": "backend/src",
+      "kind": "source"
+    },
+    {
+      "path": "backend/tests",
+      "kind": "test"
+    },
+    {
+      "path": "data",
+      "kind": "other"
+    },
+    {
+      "path": "docs",
+      "kind": "docs"
+    },
+    {
+      "path": "frontend",
+      "kind": "source"
+    },
+    {
+      "path": "frontend/src",
+      "kind": "source"
+    },
+    {
+      "path": "scripts",
+      "kind": "config"
+    },
+    {
+      "path": "workers",
+      "kind": "other"
+    }
+  ],
+  "root_files": [
+    ".env",
+    ".env.example",
+    ".env.production.example",
+    ".gitattributes",
+    ".gitignore",
+    ".node-version",
+    ".nvmrc",
+    "Ctemptwice-mv.db",
+    "DESIGN_INDEX.md",
+    "DESIGN_SPECS.md",
+    "LICENSE",
+    "README.md",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "reasonix.toml",
+    "render.yaml",
+    "server.log",
+    "start-linux.sh",
+    "start-windows.cmd",
+    "stop-linux.sh",
+    "stop-windows.cmd"
+  ],
+  "sample_files": [
+    "backend/src/db/admin.ts",
+    "backend/src/db/catalog.ts",
+    "backend/src/db/database.ts",
+    "backend/src/db/init.ts",
+    "backend/src/db/musicAssets.ts",
+    "backend/src/db/musicLyrics.ts",
+    "backend/src/db/mv.ts",
+    "backend/src/db/seed/appleCatalog.ts",
+    "backend/src/db/seed/catalog.ts",
+    "backend/src/db/tracks.ts",
+    "backend/src/routes/admin.ts",
+    "backend/src/routes/catalog.ts",
+    "backend/src/routes/meta.ts",
+    "backend/src/routes/music.ts",
+    "backend/src/routes/mv.ts",
+    "backend/src/routes/tracks.ts",
+    "backend/src/scripts/localizeAlbumCovers.ts",
+    "backend/src/scripts/saveBiliCredential.ts",
+    "backend/src/scripts/uploadAlbumCoversR2.ts",
+    "backend/src/scripts/warmMusicR2.ts"
+  ],
+  "notes": [
+    "该分析不调用 LLM / embedding，只做确定性文件探测。",
+    "请 AI 抽样阅读 sample_files 后补充 coding_style / architecture_notes 字段。"
+  ]
+}

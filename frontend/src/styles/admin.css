@@ -1678,9 +1678,110 @@
   }
 }
 
+
+/* ── AppShell admin auth slot / account button (moved from global.css, UX-02) ── */
+
+.admin-account-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(234, 76, 137, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--heading-text);
+  font: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px -24px rgba(31, 41, 55, 0.7);
+  backdrop-filter: blur(14px);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-auth-slot {
+  display: flex;
+  width: 180px;
+  flex: 0 0 180px;
+  justify-content: flex-end;
+}
+
+
+
+.admin-account-button {
+  width: 100%;
+  gap: 6px;
+  padding: 3px 8px 3px 4px;
+  cursor: pointer;
+}
+
+.admin-login-link:hover,
+.admin-account-button:hover {
+  border-color: rgba(234, 76, 137, 0.38);
+  background: rgba(255, 234, 243, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px -24px rgba(234, 76, 137, 0.55);
+}
+
+.admin-account-avatar {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: white;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  object-fit: cover;
+}
+
+
+.admin-account-name {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.admin-account-caret {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-text);
+}
+
+.admin-account-caret svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.admin-account-caret path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:root[data-theme='dark'] .admin-login-link,
+:root[data-theme='dark'] .admin-account-button {
+  background: rgba(58, 35, 59, 0.74);
+  color: #ffffff;
+}
+
 /* ── Sidenote: Admin Login Link (in AppShell) ──────────── */
 .admin-login-link {
   display: inline-flex;
+  width: 100%;
   min-height: 38px;
   align-items: center;
   padding: 0 18px;
@@ -1698,4 +1799,12 @@
 .admin-login-link:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 36px rgba(255, 95, 162, 0.35);
+}
+
+/* AppShell auth slot shrinks on very narrow screens (moved from global.css). */
+@media (max-width: 480px) {
+  .admin-auth-slot {
+    width: 160px;
+    flex-basis: 160px;
+  }
 }

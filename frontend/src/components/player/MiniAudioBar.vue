@@ -142,6 +142,32 @@
         <n-slider v-model:value="progressValue" :max="progressMax" :step="1" :tooltip="false" :disabled="!audioStore.audioUrl" />
         <span>{{ formatTime(duration) }}</span>
       </div>
+      <div class="mini-audio-volume" role="group" :aria-label="t('player.volume')">
+        <n-button quaternary circle size="small" class="mini-volume-toggle" :title="muteButtonLabel" :aria-label="muteButtonLabel" :aria-pressed="audioStore.muted" @click="audioStore.toggleMute()">
+          <svg v-if="audioStore.muted || volumePercent === 0" class="mini-volume-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+          <svg v-else class="mini-volume-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </n-button>
+        <n-slider
+          v-model:value="volumePercent"
+          class="mini-volume-slider"
+          :min="0"
+          :max="100"
+          :step="1"
+          :tooltip="false"
+          :aria-label="t('player.volume')"
+          @after-change="announceVolume"
+        />
+        <span class="mini-volume-value" aria-hidden="true">{{ volumePercent }}%</span>
+        <span class="mini-audio-live" aria-live="polite">{{ volumeLiveText }}</span>
+      </div>
     </div>
 
     <div class="mini-audio-lyric">
@@ -233,6 +259,17 @@ const playModeLabel = computed(() => {
   return t('player.sequence')
 })
 const playButtonLabel = computed(() => (audioStore.loading ? t('player.loading') : audioStore.playing ? t('player.pause') : t('player.play')))
+const muteButtonLabel = computed(() => (audioStore.muted ? t('player.unmute') : t('player.mute')))
+const volumePercent = computed({
+  get: () => Math.round(audioStore.volume * 100),
+  set: (value: number) => audioStore.setVolume(value / 100),
+})
+const volumeLiveText = ref('')
+
+function announceVolume() {
+  if (audioStore.muted) return
+  volumeLiveText.value = t('player.volumeAnnounce', { value: Math.round(audioStore.volume * 100) })
+}
 const isCoverSpinning = computed(() => audioStore.playing && !audioStore.loading)
 const currentCoverSources = computed(() => {
   const track = audioStore.currentTrack
@@ -366,6 +403,26 @@ watch(() => audioStore.playing, async (shouldPlay) => {
   } else {
     audioRef.value.pause()
   }
+})
+
+// Volume/mute: the store is the single source of truth; keep the real <audio>
+// element in sync when it appears and whenever the values change (DESIGN_SPECS §4.2).
+watch(audioRef, (el) => {
+  if (!el) return
+  el.volume = audioStore.volume
+  el.muted = audioStore.muted
+})
+watch([() => audioStore.volume, () => audioStore.muted], () => {
+  const el = audioRef.value
+  if (!el) return
+  el.volume = audioStore.volume
+  el.muted = audioStore.muted
+})
+
+// Limited, non-intrusive live-region announcements (only on mute toggles and
+// slider release — never on every drag tick).
+watch(() => audioStore.muted, (isMuted) => {
+  volumeLiveText.value = isMuted ? t('player.volumeMuted') : t('player.volumeUnmuted')
 })
 
 function closePlayer() {

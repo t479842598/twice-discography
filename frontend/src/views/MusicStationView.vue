@@ -263,18 +263,6 @@ async function downloadCandidate(candidate: MusicCandidate) {
   color: var(--muted-text);
 }
 
-.music-station-audio {
-  width: 100%;
-}
-
-.music-station-lyrics-empty {
-  padding: 14px 18px;
-  border: 1px dashed var(--soft-border);
-  border-radius: 18px;
-  color: var(--muted-text);
-  text-align: center;
-}
-
 .section-heading-row {
   display: flex;
   align-items: center;

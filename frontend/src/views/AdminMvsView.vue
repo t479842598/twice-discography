@@ -74,10 +74,10 @@
                 <n-icon :component="LinkOutline" />
               </template>
             </n-input>
-            <n-input v-model:value="mv.biliBvid" size="small" placeholder="BVID" />
+            <n-input v-model:value="mv.biliBvid" size="small" :placeholder="t('admin.mvs.bvidPlaceholder')" />
           </div>
           <div class="admin-table-cell" data-label="P">
-            <n-input-number v-model:value="mv.biliPage" size="small" :min="1" placeholder="P" />
+            <n-input-number v-model:value="mv.biliPage" size="small" :min="1" :placeholder="t('admin.mvs.pagePlaceholder')" />
           </div>
           <div class="admin-table-cell admin-mv-cover-cell" :data-label="t('admin.mvs.column.cover')">
             <img v-if="mv.coverUrl" :src="coverPreviewUrl(mv.coverUrl)" :alt="displayTitle(mv)" loading="lazy" decoding="async" />

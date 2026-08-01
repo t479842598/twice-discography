@@ -1,6 +1,6 @@
 # TWICE Discography — 完整重设计与交付规格
 
-> **文档状态：** 已按当前代码库复核（Vue 3 + Vite + Pinia + Naive UI + Fastify + SQLite）。
+> **文档状态：** 已按当前代码库复核（Vue 3 + Vite + Pinia + Naive UI + Fastify 5 + SQLite）。§8 审计项于 2026-08-01 再次逐条对照代码复核并更新（含已解决项标注）；§3.1 新增 Music Station 样式细化规格。
 > **目标：** 在不牺牲现有曲库、播放、MV、后台权限、多语言和部署能力的前提下，完成可访问、可测试、可维护的生产级重设计；不是只做视觉样稿。
 >
 > 本文是唯一设计实施规格。旧版引用的 `designs/*.md` 文件在仓库中不存在，不能作为实现依据。
@@ -34,7 +34,7 @@
 ### 2.1 设计方向
 
 - 风格：**TWICE 粉色品牌语义 + 现代半透明表面 + 有节制的渐变**。玻璃效果仅用于层级、浮动导航、播放器和对话框，不能降低正文可读性。
-- 默认主题：暗色优先；浅色为完整的一等主题，而非仅反转背景。
+- 默认主题：暗色优先；浅色为完整的一等主题，而非仅反转背景。⚠️ 复核：当前 `stores/theme.ts` 默认值为 `light`（localStorage 无值即浅色），与“暗色优先”冲突——需产品确认后同步修改默认值，或调整本规格为浅色默认。
 - 字体：保留 **Outfit** 作为显示/界面字体；正文使用系统无衬线回退。若引入 Inter，必须将其作为显式构建/加载依赖，并提供本地及系统回退；不得只在设计文档中假定其可用。
 - 背景视频和远程图片只是渐进增强：无网络、节流、移动端、数据节省或减少动态效果时，必须有低成本本地渐变/图片兜底，且不影响内容对比度。
 
@@ -57,6 +57,9 @@
 --color-danger: #fb7185;
 --focus-ring: #f9a8d4;
 ```
+
+> **token 对齐（与现有代码词汇的关系，防止平行 token 体系）：**
+> 复核确认：代码库现有 token 词汇是 `--page-bg`/`--page-bg-soft`、`--panel-bg`/`--panel-bg-strong`、`--topbar-bg`、`--page-text`、`--muted-text`、`--heading-text`、`--soft-border`、`--accent`/`--accent-strong`/`--accent-light`、`--shadow`/`--glow`（浅色在 `global.css` 的 `:root`，暗色在 `:root[data-theme='dark']`）；后台另有 `--admin-*` 一组（`admin.css` 的 `.admin-page` 与 `:root[data-theme='dark'] .admin-page` 覆盖）。**§2.2 的 `--color-*` 是目标语义命名，不是第二套运行时 token**——落地时以“重命名/别名”收敛到现有词汇（如 `--color-text→--page-text`、`--color-text-muted→--muted-text`、`--color-border→--soft-border`、`--color-primary→--accent-strong`），或一次性全局替换并同步所有引用；不得新旧两套并存。`--focus-ring`、成功/警告/危险色、`--shadow-soft`、`--color-surface-raised` 等缺失 token 在 tokens 层补齐浅/暗值（联动 UX-08 的 tokens 文件与 lint）。页面 scoped CSS 一律引用 token，不得引用裸色值。
 
 规则：
 
@@ -98,6 +101,18 @@
 | `/variety` | 当前错误地重定向首页 | 实施已存在的 `VarietyView` 并注册路由、导航和测试；若业务决定不发布，则删除/隐藏所有入口和设计承诺。 |
 | `/music-station` | `MusicStationView` | 多源检索、播放和歌词。下载操作须只在授权分发的资源与合规部署中展示；不允许以新 `<audio>` 与全局播放器同时播放。 |
 | `/search?q=` | **新增 `SearchView`** | 按专辑、曲目、成员、广告曲、翻唱分组呈现 `GET /api/search` 的完整结果；空 query 显示引导。顶部搜索提交后跳转此页，而不是只跳到“最佳猜测”。 |
+
+### 3.1.1 Music Station（`/music-station`）样式与体验细化（本轮优化目标）
+
+**现状（已复核）：** `MusicStationView` 已接入全局 audio store——播放经 `audioStore.playResolvedMusic()` 载入全局 `MiniAudioBar` 链路，页面自身无 `<audio>`（UX-01 已解决）；检索/解析/播放/下载文案已全部 i18n。本轮“样式优化”按 §2 视觉系统与下列要求执行，不是推翻现有结构：
+
+- **搜索面板**：输入框 + 源多选（qq/netease/kuwo/joox）+ 音质选择（best/lossless/320k/hq/standard）三栏网格，≤900px 折叠为单列（现状已具备，统一用 `--panel-bg`/`--soft-border`/`--shadow-soft` 语义化 token）。提交后 query 保留在输入框可一键重搜；空 query、候选不可用（404）、网络失败分别给出可读、可关闭提示，不依赖短暂 toast。
+- **结果卡片**：封面固定比例（70×70 / 移动 88×88）走 `FallbackImage` 链式回退并保留占位避免 CLS；标题、歌手、专辑、来源/时长/音质/歌词标签齐全。hover/激活态仅变化颜色与阴影（现状 `translateY(-3px)` 在移动端已禁用，桌面端需在 `prefers-reduced-motion` 下同样禁用）；激活卡片用非色彩标识（边框 + `aria-current`/选中态）标识当前播放项。
+- **播放联动**：播放=解析后经 `audioStore.playResolvedMusic()` 载入全局播放器；正在播放的候选在结果中明确标识；本页不创建第二条播放链路（E2E 覆盖）。音量、队列、Media Session 统一由全局播放器负责（§4）。
+- **下载**：下载按钮只在授权分发的资源与合规部署中展示（需服务端/环境开关，不默认全开）；当前 `openDownload` 直接 `window.open` 解析 URL，需受该开关约束并给出解析失败的可恢复提示。
+- **状态与无障碍**：loading（n-spin）、空态（n-empty）、错误（n-alert）齐备；表单控件与卡片操作按钮键盘可达；所有文案/aria 入 i18n 五语言；`prefers-reduced-motion` 下禁用卡片位移与转场动画。
+- **死代码清理**：删除无引用的 `.music-station-audio`、`.music-station-lyrics-empty` 样式；`--shadow-soft` 未定义 token 按 UX-08 统一处理。
+- **验收**：320/640/900/1280 断点、浅/暗主题、五语言、键盘遍历、无第二播放链路 E2E。
 
 ### 3.2 全局壳层
 
@@ -206,6 +221,30 @@
 - 不以全局无限 animation、所有列表项预取或每次路由切换的管理会话请求换取“视觉效果”。
 - 在慢网、离线、第三方音源/MV 失败、封面失败、localStorage 禁用和音频 autoplay 拒绝下验证可恢复体验。
 
+### 6.4 MV 播放性能优化（本轮新增）
+
+**已复核的冷启动延迟链路：**
+
+1. 点击播放 → modal 打开 → 前端才调 `GET /api/mv/:trackId/playback`（`MvPlayer.vue` 在 `watch(show)` 内冷启动解析，无任何预取）；
+2. 后端 `resolveBiliMvPlayback()` 串行两次**无缓存**的上游 B站请求（`view` API 取 cid → `playurl` API 取 DASH/MP4 地址），每次打开都重新付出该往返延迟；
+3. 配置了 `MV_PROXY_SIGNING_SECRET`/`MV_PROXY_BASE_URL` 时走 Cloudflare Worker 边缘（快）；否则 builtin `/api/mv/:trackId/stream` 由 Node 中转 B站 CDN（跨地域慢，仅有 500 条 streamTarget 内存缓存）；
+4. `dashPlayer.ts` 对视频/音频 fMP4 从字节 0 顺序拉取（无 Range/init-first 策略），mp4box 在主线程解析，首帧延迟高；
+5. 默认 qn=80（1080P）DASH 起播，弱网首帧更慢；移动端用硬编码 `setTimeout(3000)` 假“加载中”提示。
+
+**方案（按收益/成本排序，全部可独立交付）：**
+
+1. **后端解析缓存**：对 `view`+`playurl` 结果做短 TTL 缓存（5–10 分钟，复用 `withMusicCache` 模式；只缓存最小必要元数据与 `qualities`，不落盘长期签名 URL）；重复打开从秒级降到 <500ms。
+2. **前端 MV 预热**：首页/专辑页在空闲时按需预取可见/精选 MV 的 playback（限流、可取消、遵守 save-data 与 reduced-motion）；hover/进入视口触发预取（按 §5.1 规则）。
+3. **后端预热任务**：可选启动/定时任务预热精选 MV 的 view+playurl 解析写入 TTL 缓存，与前端预热互补（受 SEC-06 有界队列约束）。
+4. **默认画质降级起播**：首次以 480P/720P 起播保证首帧，播放稳定后自动升到用户上次选择的画质（版本化 localStorage 记忆）；后端按客户端提示可下调默认 qn。
+5. **DASH 播放器优化**：先拉 init 段与前几秒样本即开播；**按需分段 Range 拉取**——现状 `pump()` 会把视频+音频**整个流拉完（读到 `done`）才结束**，用户只看开头也全量下载；**AbortController 贯穿 fetch**，关闭播放器/切画质/路由离开时立即中断（现状 fetch 无 signal，关闭 modal 后下载仍在继续）；**视频就绪即开播**——现状 `Promise.all([videoReady, audioReady])` 会等双轨 init 都就绪才 append/start，音频慢会拖住视频首帧，应改为视频就绪即起播、音频就绪后补挂（注意 Chrome 对已有数据的 MediaSource 会锁定 buffer 数量，需先建双 SourceBuffer 再喂数据，代码注释已说明该约束）；SourceBuffer 背压；真实 buffering 状态（`waiting`/`canplay` 事件）替代假计时器。
+6. **DASH 解析移入 Web Worker**：`dashPlayer.ts` 的 mp4box 分段解析当前全部在主线程，长视频会卡 UI；解析移入 Web Worker，主线程只做 SourceBuffer 追加与背压。
+7. **边缘优先**：生产强制配置 Worker（`MV_PROXY_BASE_URL`），Worker 用 Cache API 缓存视频段；builtin 代理仅作降级（SEC-03 残余一并处理）。
+8. **连接预热**：`preconnect`/`dns-prefetch` 到 CDN host（`bilivideo.com`、`akamaized.net`）。
+9. **加载 UI**：视频容器先显示封面 poster，加载/缓冲态有真实文案（i18n）与键盘可读提示。
+10. **B站官方 iframe 零成本兜底**：把现有 `MvPlayer` 的 `player.bilibili.com` 路径（`localBiliIframeUrl`/`fallbackBiliIframeUrl`）从“仅失败兜底”升级为显式低延迟策略——无凭证、弱网或 Worker 不可达时直接切官方播放器（B站 CDN 保证首帧），代价是失去内置画质选择，用设置开关控制。
+11. **验收指标**：同网 P75 首帧 < 2s；命中缓存重复打开 < 500ms；弱网可降到 480P 起播；无假计时器残留。
+
 ---
 
 ## 7. 测试、质量门槛与实施顺序
@@ -227,7 +266,7 @@
 1. **基础层：** 建立语义 token、浅/暗映射、动效降级、全局可访问性基线和 i18n key 完整性检查。
 2. **信息架构：** 实现并测试 `/tracks`、`/search`、`/variety` 的明确决策，重构 AppShell 移动导航与 URL 状态。
 3. **数据浏览：** 依次完成首页、年份、专辑/曲目、成员、Solo/Unit、CF/Cover 的 loading/empty/error、筛选和响应式布局。
-4. **统一播放器：** 先修正单一音频所有权，再交付音量、歌词/队列语义、Media Session 和 FullPlayerOverlay；随后把 Music Station 接入同一链路。
+4. **统一播放器：** 先修正单一音频所有权，再交付音量、歌词/队列语义、Media Session 和 FullPlayerOverlay；随后把 Music Station 接入同一链路；MV 播放性能（§6.4：解析缓存、预热、降级起播、DASH init-first）与播放器一同交付。
 5. **后台：** 先完成现有模块的安全、状态与错误体验；新增内容管理先交付 API/migration/审计，再交付 UI。
 6. **收尾：** 全量测试、性能预算、可访问性审计、跨部署模式（单体与前后端分离）验证、视觉回归与文档更新。
 
@@ -246,39 +285,43 @@
 ## 8. 本轮代码审计待决项（按严重度，未经确认不实施）
 
 > 本节基于前后端、Worker、部署配置与依赖树的实际读取结果编写。下列项目**尚未实施**，用于由产品负责人决定是否纳入修复计划。严重度采用：**P0 致命**（可直接导致敏感数据/权限失守）、**P1 高**（可被远程利用或造成明显生产中断）、**P2 中**（需条件或影响范围有限）、**P3 低**（体验、可访问性、可维护性问题）。当前未确认 P0；P1 应优先决定并修复。
+>
+> ⚠️ **复核说明（2026-08-01 再次逐条对照当前代码）：** 下表以**当前代码状态**为准。标注「**已解决**（原 Px）」的行，其修复已在最新提交中落地（保留用于追溯与回归验证）；其余为仍待决项。原审计中若干 P1 已关闭，剩余风险以 P2 为主，决策顺序见 §8.3。
 
 ### 8.1 安全与可靠性
 
 | ID | 严重度 | 已验证问题 | 证据 | 建议处置 |
 | --- | --- | --- | --- | --- |
-| SEC-01 | **P1 高** | 生产默认管理员密码存在硬编码回退值 `tang1234`，且示例环境文件也提供该弱值。若部署遗漏 `ADMIN_DEFAULT_PASSWORD` 且数据库首次初始化，攻击者可用公开默认凭据取得 owner 权限。 | `backend/src/services/adminAuth.ts` 的 `DEFAULT_ADMIN_PASSWORD` 与 `ensureDefaultAdmin()`；`.env.example`。 | 删除默认值；生产环境缺少强随机密码时拒绝启动/拒绝初始化；首次初始化使用一次性 bootstrap secret 或显式 CLI；对现有安装执行凭据轮换。 |
-| SEC-02 | **P1 高** | 管理员 cookie 在跨站部署时设置为 `SameSite=None; Secure`，但所有改变服务器状态的管理端点没有 CSRF 防护，也未校验 `Origin`/`Referer`。已登录 owner 访问恶意站点时，跨站请求可创建账号、改角色/密码、写入 Cookie、修改 MV 或登出。 | `backend/src/services/adminAuth.ts` 的 `adminCookieAttributes()`；`backend/src/routes/admin.ts` 的 POST/PUT/PATCH/DELETE 路由；前端 API 一律 `credentials: 'include'`。 | 引入 CSRF token（双提交或服务端绑定 token）并在全部非安全方法强制校验；同时严格 allowlist 校验 Origin；能同站部署时优先 `SameSite=Lax/Strict`；新增跨域/CSRF E2E 测试。 |
-| SEC-03 | **P1 高** | 后端内置 MV 流代理对公开请求使用服务端 B站凭证解析和转发视频，但无频率、并发、带宽、Range、超时和响应大小限制；还显式返回 `Access-Control-Allow-Origin: *`。攻击者可枚举有效 trackId，将服务器变成高带宽公开代理并耗尽连接/流量。 | `backend/src/routes/mv.ts` 的 `/:trackId/stream`（无 `Range` 转发、无 AbortController、公开 CORS、`public` 缓存）。 | 默认禁用内置流代理，生产仅使用已签名且限速的 Worker；若保留，增加鉴权/签名、IP/会话速率与并发限制、上游 host allowlist、Range 正确透传、请求超时与流取消、带宽配额、`Vary: Origin` 与精确 CORS。 |
-| SEC-04 | **P1 高** | Cloudflare MV Worker 的签名载荷与后端签发载荷不一致：后端签名 `targetUrl + referer + expiresAt + allowedOrigin` 四项，Worker 仅验证前三项；同时 Worker 解码出的 `u` 可指向任意 HTTP(S) host，且跟随重定向。这会使 Worker 路径在当前配置下失效；若签名格式被“修好”但未加入 host/redirect 校验，则会成为签名 URL 有效期内的开放代理/SSRF 出口。 | `backend/src/services/biliCredential.ts` 的 `signProxyUrl()`；`workers/mv-proxy/src/index.ts` 的 `sign()`、`fetch()`。 | 统一为同一版本化 canonical payload（包含允许的前端 origin/受众）；Worker 验证 `o` 与请求 Origin，并只允许明确的 Bilibili CDN host 集合和 HTTPS；使用 `redirect: 'manual'` 或逐跳重新校验；加速率/大小限制与签名契约测试。 |
-| SEC-05 | **P1 高** | 依赖审计检出 15 个 high（共 19 个）：Fastify 4.29.1、`@fastify/static` 7.0.4 及传递的 `fast-uri`、`find-my-way`、`glob`/`brace-expansion`，还有前端 PostCSS。包含静态路径遍历/路由守卫绕过、HTTP body validation bypass、DoS 等已公开漏洞。 | `pnpm audit --prod --audit-level=low` 输出；`backend/package.json` 锁定 Fastify 4 / static 7。 | 将 Fastify、其官方插件和 `fastify-type-provider-zod` 迁移到相互兼容的受支持版本，升级/override 所有受影响传递依赖；锁文件更新后运行完整 API、静态托管、CSP、路由和部署回归测试；CI 阻断新增 high/critical。 |
-| SEC-06 | **P2 中** | 管理员登录、B站解析/验证、封面代理、内置 MV 流及 R2 音频下载没有统一的入站速率限制；其中多处外部 `fetch` 没有 timeout/AbortController，慢上游可长期占用 Node 请求和资源。 | `backend/src/routes/admin.ts`、`backend/src/routes/mv.ts`、`backend/src/services/biliCredential.ts`、`backend/src/services/musicR2Cache.ts`。 | 在 Fastify 加全局 body size、request timeout、限速与登录退避；对外部请求统一封装 timeout、总响应大小/内容类型限制、取消传播和有限重试；为耗时缓存工作使用有界队列。 |
-| SEC-07 | **P2 中** | 管理员角色模型把所有自定义角色归一为 `editor` 默认权限语义，且 UI 可移除最后一个 owner 的 owner 角色或禁用最后一个 owner；会造成锁死/不可恢复的后台管理。 | `backend/src/db/admin.ts` 的 `normalizeAdminRoles()`、`updateAdminUser()`；`backend/src/routes/admin.ts`；`AdminUsersView.vue`。 | 服务器事务内阻止移除/禁用最后一个 active owner；自定义角色必须定义权限集后才可授予，不能暗中等同 editor；为 owner 转移、禁用和恢复写审计及测试。 |
-| SEC-08 | **P2 中** | 音乐搜索/播放响应（含短期音频 URL 与歌词）被持久化进 SQLite `music_cache`，但没有清理过期行、容量上限或敏感 URL 生命周期策略；数据库泄露/备份会扩大第三方访问链接和歌词暴露面，长期运行也会膨胀。 | `backend/src/services/musicCache.ts` 与 `backend/src/db/schema.sql` 的 `music_cache`。 | 只缓存最小必要元数据；避免落盘临时签名 URL/敏感 token；定期删除过期项，限制条数/字节数，并在备份策略中加密/排除该缓存。 |
-| SEC-09 | **P2 中** | 已提交的运行数据库 `data/twice.db` 当前工作树中含一条 B站加密凭证记录和 7 条管理员 session；即使 Git index 中的该文件为空，数据库/备份/部署打包策略已不安全，且现有 session 应视为泄露。 | 对 `backend/data/twice.db` 的只读 schema/计数检查；`.gitignore` 仅忽略 `backend/data/`，而运行时默认路径可能写入 `data/twice.db`。 | 立即撤销所有 session、轮换 B站 Cookie 和加密密钥；绝不跟踪运行时数据库或备份；使用持久卷/secret manager；加入 pre-commit/CI secret 与二进制数据库检测。 |
+| SEC-01 | **已解决**（原 P1） | 复核确认：`ensureDefaultAdmin()` 现要求 `ADMIN_DEFAULT_PASSWORD` ≥ 12 字符，否则启动即抛错拒绝初始化；代码中已无硬编码回退密码，`.env.example`/`.env.production.example` 也不再提供弱值。残余：仅本地开发 `.env`（gitignored）含 `tang1234`；曾用弱密码初始化的旧安装需凭据轮换。 | `backend/src/services/adminAuth.ts` 的 `ensureDefaultAdmin()`/`MIN_BOOTSTRAP_PASSWORD_LENGTH`；`.env.example` 第 62 行为空值。 | 已完成；补 CI/README 检查（禁止向仓库提交非空 `ADMIN_DEFAULT_PASSWORD`），旧部署轮换凭据。 |
+| SEC-02 | **已解决**（原 P1） | 复核确认：`requireAdminCsrf()` 已在所有非安全方法（`/auth/login` 除外）强制校验——每会话独立 `csrfToken`、`x-csrf-token` 定时安全比较、请求 `Origin` 命中 `trustedAdminOrigins()` 白名单；cookie 跨站部署仍为 `SameSite=None; Secure`，同站回退 `Lax`。残余：补 CSRF/跨域 E2E 测试；同站部署可进一步收紧为 `Lax`。 | `backend/src/services/adminAuth.ts` 的 `requireAdminCsrf()`/`trustedAdminOrigins()`/`adminCookieAttributes()`；`backend/src/routes/admin.ts` 的 preHandler hook；`/admin/auth/login` 与 `/admin/session` 返回 `csrfToken`。 | 已完成；补充跨域/CSRF E2E 测试，同站部署改用 `SameSite=Lax`。 |
+| SEC-03 | **P2 中**（原 P1，已部分解决） | 复核确认：内置流代理现要求短时签名 token（`verifyStreamToken`，过期/伪造返回 403）、按 IP 限速（429 `stream_rate_limited`）、15s AbortController 超时、正确透传 `Range`、`cache-control: private`；全局 CORS 为精确 origin 白名单（无 `*`）。残余：无并发/带宽配额、无全局速率限制、代理默认启用（未签名 URL 已不可用，但高并发仍可占用上游连接与带宽）。 | `backend/src/routes/mv.ts` 的 `/:trackId/stream`（`verifyStreamToken`/`isStreamAllowed`/AbortController/Range 转发/`private` 缓存）；`backend/src/server.ts` 的 cors 白名单。 | 追加并发/带宽配额与全局限速；评估生产默认关闭内置代理、仅用已签名限速 Worker。 |
+| SEC-04 | **已解决**（原 P1） | 复核确认：后端 `signProxyUrl()` 与 Worker `sign()` 现使用同一版本化 payload（`v`、`u`、`r`、`exp`、`o` 五项）；Worker 校验全部五项、目标 host 白名单（`bilivideo.com`/`akamaized.net`）且仅 HTTPS、`redirect: 'manual'`、请求 `Origin` 必须等于 `o`、`access-control-allow-origin` 精确回显并带 `Vary: Origin`。残余：`workers/mv-proxy/README.md` 仍只写验证 `u`/`r`/`exp`/`sig`，未提 `v`/`o`——文档需与代码同步；补签名契约与限速测试。 | `backend/src/services/biliCredential.ts` 的 `signProxyUrl()`（五项 payload）；`workers/mv-proxy/src/index.ts` 的 `sign()`/`isAllowedTargetHost()`/`redirect: 'manual'`。 | 已完成；同步 Worker README 与代码；补充 Worker 签名契约与速率限制测试。 |
+| SEC-05 | **已解决**（原 P1） | 复核确认：依赖已升级，lockfile 解析为 `fastify@5.11.0`、`@fastify/static@10.1.2`（后端已不在旧 Fastify 4 / static 7 链上）；复核时执行 `pnpm audit --prod --audit-level=high` 输出 “No known vulnerabilities found”。残余：CI 保持 audit 门禁并定期复查。 | `backend/package.json` 与 `pnpm-lock.yaml`（fastify 5.11.0 / @fastify/static 10.1.2）；`pnpm audit --prod` 结果。 | 已完成；CI 加入 audit 阻断（新增 high/critical 即失败），升级后跑完整 API/静态托管/CSP/路由回归。 |
+| SEC-06 | **P2 中** | 管理员登录、B站解析/验证、封面代理、内置 MV 流及 R2 音频下载仍无统一的入站速率限制。MV 流/封面代理/B站 fetch 已有 timeout+AbortController，但 `musicR2Cache.ts` 的 R2 下载 fetch 仍无 timeout/AbortController，慢上游可长期占用 Node 请求。 | `backend/src/routes/admin.ts`；`backend/src/routes/mv.ts`（已有 AbortController）；`backend/src/services/biliCredential.ts`；`backend/src/services/musicR2Cache.ts`（缺失）。 | 在 Fastify 加全局 body size、request timeout、限速与登录退避；为 `musicR2Cache.ts` 等剩余外部请求统一封装 timeout、总响应大小/内容类型限制、取消传播和有限重试；为耗时缓存工作使用有界队列。 |
+| SEC-07 | **P2 中** | 复核修正：自定义角色已入 `admin_roles` 表并支持增删改，`normalizeAdminRoles()` 仅过滤为现存角色（无有效输入时才回落 `editor`），不再把自定义角色一律归一为 editor。但 `updateAdminUser()` 与路由仍无“最后一个 active owner”保护：UI/API 可移除最后一个 owner 的 owner 角色或禁用其账号，造成后台锁死；全后端亦无写操作审计日志。 | `backend/src/db/admin.ts` 的 `normalizeAdminRoles()`、`updateAdminUser()`（无 last-owner 守卫）；`backend/src/routes/admin.ts`；`AdminUsersView.vue`。 | 服务端事务内阻止移除/禁用最后一个 active owner；owner 转移/禁用/恢复写审计并加测试；审计日志为 §5.2 通用前置条件（当前无 audit 表/记录）。 |
+| SEC-08 | **P2 中** | 复核修正：`music_cache` 现已有 `expires_at` 列 + 索引，读写均按 TTL 判过期（不会回放过期数据）；但仍无过期行物理清理、无条数/字节上限，`value_json` 会持久化解析出的音频 URL（含短期签名 URL）与歌词，数据库/备份泄露会扩大访问链接暴露面，长期运行会膨胀。 | `backend/src/services/musicCache.ts`（TTL 判断已实现，无清理）；`backend/src/db/schema.sql` 的 `music_cache`（`expires_at` + 索引已存在）。 | 增加定时删除过期行与条数/字节上限；只缓存最小必要元数据，避免落盘临时签名 URL/敏感 token；备份策略加密或排除该缓存。 |
+| SEC-09 | **P2 中** | 复核修正：Git 跟踪的 `data/twice.db` 为 **0 字节空文件**（无凭证泄露）；真实运行时库在 `backend/data/twice.db`（约 2.4MB，含 B站凭据/管理员 session），已被 `backend/data/` 忽略，另有 `twice.db.bak` 同目录。风险点：`.gitignore` 的 `!data/twice.db` 反向规则鼓励跟踪数据库；备份/部署打包若含 `backend/data/` 会泄露凭据与 session；本地 `.env` 存弱开发密码（见 SEC-01）。 | `git ls-files`（`data/twice.db` 为空）；`backend/data/twice.db` 与 `.bak`（gitignored）；`.gitignore`（`backend/data/` 已忽略，但含 `!data/twice.db`）。 | 移除 `!data/twice.db` 反向规则；确保备份/部署包排除 `backend/data/` 与 `.bak`；必要时对现有 session/凭据轮换；pre-commit/CI 加 secret 与二进制 DB 检测。 |
 
 ### 8.2 样式、可访问性与产品质量
 
 | ID | 严重度 | 已验证问题 | 证据 | 建议处置 |
 | --- | --- | --- | --- | --- |
-| UX-01 | **P1 高** | Music Station 自行渲染第二个 `<audio autoplay>`，而全局 MiniAudioBar 也有独立 `<audio>`。两个播放器可同时发声，队列、音量、歌词、暂停和 Media Session 状态会分裂。 | `frontend/src/views/MusicStationView.vue`；`frontend/src/components/player/MiniAudioBar.vue`。 | 按第 4 节重构为 audio store + 单一媒体元素；Music Station 仅将候选解析结果载入全局播放器；加 E2E 验证切换后不残留第二路播放。 |
-| UX-02 | **P1 高** | 全局 CSS 与 admin CSS 大量重复且互相覆盖（例如 `admin-page`、`admin-panel`、`admin-table`、`admin-login-link` 等）；`global.css` 中保留多轮旧后台样式，会与 `admin.css` 的新设计竞争，导致主题、响应式和组件状态难以预测。 | `frontend/src/styles/global.css` 约 4,000 行及 `frontend/src/styles/admin.css`；重复选择器扫描结果。 | 建立单一 admin 样式所有权；删除死规则并按 token/组件分层；禁止全局裸 `.n-button`/`.n-tag` 覆盖；为浅/暗/窄屏做视觉回归。 |
-| UX-03 | **P2 中** | 全局动效没有全局 `prefers-reduced-motion` 保障：`global.css` 有背景文字、logo、Hero、按钮、卡片、统计和歌词动画，只有局部移动端禁用；`admin.css` 的 reduced-motion 无法覆盖公开页面和 scoped LyricsDisplay。 | `frontend/src/styles/global.css` 的多处 `@keyframes`；`LyricsDisplay.vue`；唯一 reduce rule 在 `admin.css`。 | 在 `global.css` 加全局 reduce 规则，显式暂停轮播和背景视频；组件 scoped 动效也实现 reduce；避免无限装饰性动画。 |
+| UX-01 | **已解决**（原 P1） | 复核确认：全前端唯一 `<audio>` 在 `MiniAudioBar.vue`；`MusicStationView` 已不再渲染第二 `<audio>`，播放经 `audioStore.playResolvedMusic()` 载入全局链路（store 内另有 ≤16 个仅 `preload='metadata'` 的瞬时暖机 `Audio` 对象，不构成第二播放链路）。残余：补 E2E 验证切换后无第二路播放；删除 `.music-station-audio`/`.music-station-lyrics-empty` 死样式。 | `frontend/src/views/MusicStationView.vue`（无 `<audio>`，调用 `playResolvedMusic`）；`frontend/src/components/player/MiniAudioBar.vue`（唯一 `<audio>`）；`frontend/src/stores/audio.ts` 的 `warmAudio()`。 | 已完成主体重构；补 E2E 与死样式清理。 |
+| UX-02 | **P2 中**（原 P1） | 复核修正：`global.css` 现为 2,623 行（非约 4,000）；`admin-page`/`admin-panel`/`admin-table` 已仅存在于 `admin.css`（global.css 中为 0 处）。剩余重复集中在后台登录/账号外壳：`admin-login-link`、`admin-account-button`、`admin-auth-slot` 同时在 `global.css`（约 346–442、1893、2287 行）与 `admin.css` 中定义，仍会互相覆盖。 | `frontend/src/styles/global.css`（2,623 行）与 `frontend/src/styles/admin.css`（1,701 行）；重复选择器扫描（admin-login-link 等）。 | 将 admin 登录/账号外壳样式收敛到单一所有权（admin.css），删除 `global.css` 中对应规则；禁止全局裸 `.n-button`/`.n-tag` 覆盖（见 UX-06）；为浅/暗/窄屏做视觉回归。 |
+| UX-03 | **P2 中** | 全局动效没有全局 `prefers-reduced-motion` 保障：`global.css` 有 13 处 `@keyframes`（背景文字、logo、Hero、卡片、统计、歌词等动画），只有局部移动端禁用；`admin.css` 的 reduce 规则（约 1671 行）无法覆盖公开页面和 scoped `LyricsDisplay`（其 `fadeInUp`/过渡无 reduce 分支）。 | `frontend/src/styles/global.css` 的 13 处 `@keyframes`；`frontend/src/components/player/LyricsDisplay.vue`；唯一 reduce rule 在 `admin.css`。 | 在 `global.css` 加全局 reduce 规则，显式暂停轮播和背景视频；组件 scoped 动效也实现 reduce；避免无限装饰性动画。 |
 | UX-04 | **P2 中** | `/variety` 已有完整但不可达的 View，路由仍重定向首页；页面本身还有硬编码中文/emoji、不可键盘操作的可点击 `div`、不受信任 iframe URL 直接绑定及缺少 iframe sandbox。 | `frontend/src/router/index.ts`；`frontend/src/views/VarietyView.vue`。 | 决定发布则注册路由、i18n、button/link 语义、URL allowlist 和 sandbox；不发布则移除该死代码与相关样式/数据，避免维护幻象。 |
 | UX-05 | **P2 中** | 首页精选 MV 轮播自动切换，不能由键盘暂停/恢复，圆点 aria 文案硬编码英文 `Slide n`；减少动态效果时仍运行。 | `frontend/src/views/HomeView.vue` 的 interval、轮播 dots。 | 加入可见暂停按钮、键盘左右键策略、locale key、`aria-current`/tab 语义和 reduce 停止自动轮播；焦点或 hover 后不应重新强制自动播放。 |
-| UX-06 | **P2 中** | 全局 `.n-button`、`.n-tag` 和 hover transform 覆盖 Naive UI 的所有按钮/标签，包括禁用、对话框、表格操作与后台；其 `!important` 覆盖可破坏 Naive 状态色、焦点、尺寸和无障碍可见性。 | `frontend/src/styles/global.css` 约 2488–2514 行。 | 将规则改为自有 BEM class；不要给库组件设置全局 `!important` transform/shadow；明确 hover、focus-visible、disabled、loading 和 reduced-motion 变体。 |
-| UX-07 | **P2 中** | i18n 并不完整：Variety 页面大量硬编码内容；首页轮播文案、后台 BVID/P/复制失败、成员 MBTI 等也有硬编码。与“全部五语言覆盖”目标不符。 | `VarietyView.vue`、`HomeView.vue`、`AdminMvsView.vue`、`AdminBiliSettingsView.vue`、`MemberDetailView.vue`。 | 将所有面向用户文本、aria 文案、table title、placeholder、相对时间和错误纳入消息表；添加 CI key 完整性/硬编码扫描（允许名单仅用于不可翻译的 ID）。 |
+| UX-06 | **P2 中** | 全局 `.n-button`、`.n-tag` 和 hover transform 覆盖 Naive UI 的所有按钮/标签，包括禁用、对话框、表格操作与后台；其 `!important` 覆盖可破坏 Naive 状态色、焦点、尺寸和无障碍可见性。 | `frontend/src/styles/global.css` 约 2488–2507 行（`.n-button`/`.n-tag` 全局 `!important` 规则）。 | 将规则改为自有 BEM class；不要给库组件设置全局 `!important` transform/shadow；明确 hover、focus-visible、disabled、loading 和 reduced-motion 变体。 |
+| UX-07 | **P2 中** | i18n 并不完整：Variety 页面大量硬编码内容；首页轮播圆点 `aria-label` 硬编码英文 `Slide n`；`AppShell` 主题切换用 emoji（☀/☾）作为功能图标（违反 §2.3 图标规则）；`AdminMvsView` 的 BVID 输入 placeholder、`MemberDetailView` 的 MBTI 标签硬编码（复核确认：后台视图其余文案已 i18n，无“复制失败”残留）。与“全部五语言覆盖”目标不符。 | `VarietyView.vue`、`HomeView.vue`（第 25 行 `Slide n`）、`AppShell.vue`（第 60 行 ☀/☾）、`AdminMvsView.vue`（第 77 行 BVID placeholder）、`MemberDetailView.vue`（第 31 行 MBTI）。 | 将所有面向用户文本、aria 文案、table title、placeholder、相对时间和错误纳入消息表；emoji 功能图标替换为 SVG/Ionicons；添加 CI key 完整性/硬编码扫描（允许名单仅用于不可翻译的 ID）。 |
 | UX-08 | **P3 低** | 存在未定义或拼写漂移的 CSS token：`--shadow-soft` 无定义；`--accent-gradient` 只作为未设置 fallback；全局样式依赖 `--member-color` 但只有成员卡局部赋值。会使个别 surface/阴影在主题或复用中静默退化。 | CSS token 使用/定义扫描；`MusicStationView.vue`、`global.css`。 | 建立 tokens 文件与 lint；为所有 token 定义浅/暗值或在用处提供确定 fallback；避免页面 scoped CSS 引用未声明变量。 |
 | UX-09 | **P3 低** | 公开页面存在不一致的加载/失败处理：专辑、成员、详情等直接 await API，失败后为空白或永久 skeleton；快速路由切换也可能让旧请求覆盖新页面。 | `AlbumsView.vue`、`MembersView.vue`、`AlbumDetailView.vue`、`TrackDetailView.vue`、`MemberDetailView.vue`。 | 给每页统一 request state、AbortController/请求序号、重试和返回导航；404 与网络失败区分展示。 |
+| UX-10 | **P2 中** | MV 播放冷启动链路无缓存/无预取：点击播放后才解析；后端 `view`+`playurl` 两次上游请求不缓存；DASH 从字节 0 顺序拉取且 mp4box 主线程解析，`pump()` 会把视频+音频**整个流拉完（读到 `done`）才结束**——用户只看开头也全量下载；fetch 无 AbortController，关闭播放器/切画质/路由离开都不中断下载；默认 1080P 起播；移动端用硬编码 3s 计时器假装“加载中”。首帧延迟高、弱网更明显。 | `frontend/src/components/player/MvPlayer.vue`（`watch(show)` 冷启动、`setTimeout(3000)`）；`backend/src/services/biliCredential.ts` 的 `resolveBiliMvPlayback()`（无缓存）；`frontend/src/components/player/dashPlayer.ts`（`pump()` 读至 `done`、`fetch` 无 signal）；`backend/src/routes/mv.ts` 的 builtin `/stream`。 | 按 §6.4 执行：后端解析 TTL 缓存、前端 MV 预热与画质降级起播、DASH init-first + 按需分段 Range 拉取 + AbortController 中断、Worker 边缘优先、真实缓冲提示替代假计时器。 |
 
 ### 8.3 建议决策顺序
 
-1. **必须优先批准：** SEC-01、SEC-02、SEC-03、SEC-04、SEC-05、UX-01、UX-02。
-2. **应在任何新增后台/播放能力前批准：** SEC-06 至 SEC-09、UX-03 至 UX-07。
-3. **可作为设计债务排期：** UX-08、UX-09。
+1. **已完成（复核确认，无需再批准）：** SEC-01、SEC-02、SEC-04、SEC-05、UX-01 已落地；SEC-03 主体（签名+限速）已落地，仅剩并发/带宽配额残余。
+2. **必须优先批准：** UX-02（admin 样式单一所有权）、UX-10（MV 首帧性能，§6.4）、SEC-03 残余（并发/带宽配额与全局限速）。
+3. **应在任何新增后台/播放能力前批准：** SEC-06 至 SEC-09、UX-03 至 UX-07。
+4. **可作为设计债务排期：** UX-08、UX-09。
 
-在处理 P1 前，不建议公开部署后台、启用 B站流代理或扩展音乐下载/缓存能力。
+剩余风险以 P2 为主；公开部署后台/启用 B站流代理/扩展音乐下载缓存能力前，仍应先完成 UX-02、§5.2 写操作审计与 SEC-07 last-owner 保护。

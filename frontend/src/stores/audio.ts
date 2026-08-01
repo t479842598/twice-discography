@@ -13,12 +13,60 @@ const candidateCache = new Map<string, MusicCandidate[]>()
 const audioWarmers = new Map<string, HTMLAudioElement>()
 const isMobile = typeof window !== 'undefined' && (window.innerWidth <= 820 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
 
+// ---- Volume / mute persistence (DESIGN_SPECS §4.2) ----
+// Versioned key; never synced across devices. Malformed or out-of-range
+// values fall back safely; storage failures are ignored.
+const VOLUME_STORAGE_KEY = 'twice.audio.volume.v1'
+
+interface VolumePref {
+  v: number
+  m: boolean
+  l: number
+}
+
+const DEFAULT_VOLUME_PREF: VolumePref = { v: 1, m: false, l: 1 }
+
+function clampVolume(value: number) {
+  return Math.min(1, Math.max(0, Math.round(value * 100) / 100))
+}
+
+function readVolumePref(): VolumePref {
+  try {
+    if (typeof localStorage === 'undefined') return { ...DEFAULT_VOLUME_PREF }
+    const raw = localStorage.getItem(VOLUME_STORAGE_KEY)
+    if (!raw) return { ...DEFAULT_VOLUME_PREF }
+    const parsed = JSON.parse(raw) as Partial<VolumePref>
+    const volume = Number(parsed.v)
+    const lastVolume = Number(parsed.l)
+    return {
+      v: Number.isFinite(volume) ? clampVolume(volume) : DEFAULT_VOLUME_PREF.v,
+      m: Boolean(parsed.m),
+      l: Number.isFinite(lastVolume) && lastVolume > 0 ? clampVolume(lastVolume) : DEFAULT_VOLUME_PREF.l,
+    }
+  } catch {
+    return { ...DEFAULT_VOLUME_PREF }
+  }
+}
+
+function writeVolumePref(pref: VolumePref) {
+  try {
+    if (typeof localStorage === 'undefined') return
+    localStorage.setItem(VOLUME_STORAGE_KEY, JSON.stringify(pref))
+  } catch {
+    // Storage unavailable (private mode / quota): playback must keep working.
+  }
+}
+
 function playbackKey(trackId: string, source?: string) {
   return `${trackId}:${source || 'best'}`
 }
 
 export const useAudioStore = defineStore('audio', () => {
   const localeStore = useLocaleStore()
+  const volumePref = readVolumePref()
+  const volume = ref(volumePref.v)
+  const muted = ref(volumePref.m)
+  const lastVolume = ref(volumePref.l)
   const currentTrack = ref<Track | null>(null)
   const selected = ref<MusicCandidate | null>(null)
   const candidates = ref<MusicCandidate[]>([])
@@ -288,6 +336,26 @@ export const useAudioStore = defineStore('audio', () => {
     failedSources.value = Array.from(new Set([...failedSources.value, source]))
   }
 
+  function setVolume(value: number) {
+    const next = Number.isFinite(value) ? clampVolume(value) : volume.value
+    volume.value = next
+    // Dragging the slider up out of silence unmutes; muting is a separate flag.
+    if (next > 0) muted.value = false
+    writeVolumePref({ v: volume.value, m: muted.value, l: lastVolume.value })
+  }
+
+  function toggleMute() {
+    if (muted.value) {
+      // Unmute: restore the last non-zero volume if the slider is at 0.
+      if (volume.value === 0 && lastVolume.value > 0) volume.value = lastVolume.value
+      muted.value = false
+    } else {
+      if (volume.value > 0) lastVolume.value = volume.value
+      muted.value = true
+    }
+    writeVolumePref({ v: volume.value, m: muted.value, l: lastVolume.value })
+  }
+
   function applyPlayback(data: PlaybackResponse) {
     selected.value = data.selected
     candidates.value = data.candidates
@@ -337,5 +405,9 @@ export const useAudioStore = defineStore('audio', () => {
     cyclePlayMode,
     setPlaying,
     stop,
+    volume,
+    muted,
+    setVolume,
+    toggleMute,
   }
 })

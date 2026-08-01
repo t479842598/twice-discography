@@ -28,7 +28,7 @@
           <p><strong>{{ t('member.debut') }}</strong><span>{{ member.debutDate || '2015-10-20' }}</span></p>
           <p><strong>{{ t('member.height') }}</strong><span>{{ member.heightCm ? `${member.heightCm} cm` : '—' }}</span></p>
           <p><strong>{{ t('member.bloodType') }}</strong><span>{{ member.bloodType || '—' }}</span></p>
-          <p><strong>MBTI</strong><span>{{ member.mbti || '—' }}</span></p>
+          <p><strong>{{ t('member.mbti') }}</strong><span>{{ member.mbti || '—' }}</span></p>
           <p><strong>{{ t('member.zodiac') }}</strong><span>{{ zodiacLabel(member.zodiac, localeStore.locale) }}</span></p>
           <p><strong>{{ t('member.position') }}</strong><span>{{ positionLabels(member.positions, localeStore.locale) }}</span></p>
         </section>

@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto'
 import { getDatabase } from '../db/database.js'
 import type { MvConfigRecord } from '../db/mv.js'
+import { withMusicCache } from './musicCache.js'
 
 const CREDENTIAL_ID = 'default'
 const ENCRYPTION_VERSION = 'bili-cookie-v2'
@@ -430,6 +431,55 @@ function iframeUrl(bvid: string, page: number) {
   return `https://player.bilibili.com/player.html?${params.toString()}`
 }
 
+// TTL cache for the Bilibili view+playurl resolution (DESIGN_SPECS §6.4 方案1).
+// Only minimal playback metadata is cached (cid + playurl result); short-lived
+// signed CDN URLs expire with the TTL and are never persisted long-term.
+const MV_PLAYBACK_CACHE_TTL_MS = 8 * 60 * 1000
+
+export interface BiliPlaybackData {
+  cid: number
+  play: BiliPlayData
+}
+
+// In-flight dedup so concurrent /stream video+audio requests for the same
+// track do not each hit the Bilibili view+playurl APIs on a cold cache.
+const inflightPlayback = new Map<string, Promise<BiliPlaybackData>>()
+
+export async function resolveBiliPlaybackData(bvid: string, page: number, forceMp4: boolean, cookie: string): Promise<BiliPlaybackData> {
+  // Fingerprint the cookie so a rotated credential never serves the previous
+  // account's quality set / signed URLs for the remainder of the TTL.
+  const cookieFingerprint = createHash('sha256').update(cookie).digest('hex').slice(0, 12)
+  const cacheKey = `bili-mv-playback:${bvid}:${page}:${forceMp4 ? 'mp4' : 'dash'}:${cookieFingerprint}`
+  const inflight = inflightPlayback.get(cacheKey)
+  if (inflight) return inflight
+  const task = withMusicCache(cacheKey, MV_PLAYBACK_CACHE_TTL_MS, async () => {
+    const view = await fetchBiliJson<BiliViewData>(
+      `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`,
+      cookie,
+    )
+    if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
+    const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
+
+    const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
+    playUrl.searchParams.set('bvid', bvid)
+    playUrl.searchParams.set('cid', String(cid))
+    playUrl.searchParams.set('qn', '80')
+    playUrl.searchParams.set('fnval', forceMp4 ? '0' : '16')
+    playUrl.searchParams.set('fnver', '0')
+    playUrl.searchParams.set('fourk', '1')
+    playUrl.searchParams.set('platform', 'web')
+    const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
+    if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
+    return { cid, play: play.data }
+  })
+  inflightPlayback.set(cacheKey, task)
+  try {
+    return await task
+  } finally {
+    if (inflightPlayback.get(cacheKey) === task) inflightPlayback.delete(cacheKey)
+  }
+}
+
 export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: number; format?: 'mp4' | 'dash' } = {}) {
   const bvid = mv.biliBvid || mv.fallbackBiliBvid
   const page = mv.biliPage || mv.fallbackBiliPage || 1
@@ -453,25 +503,13 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
   }
 
   try {
-    const view = await fetchBiliJson<BiliViewData>(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, cookie)
-    if (view.code !== 0 || !view.data) throw new Error(view.message || 'bili_view_failed')
-    const cid = view.data.pages?.find((item) => item.page === page)?.cid ?? view.data.cid
     const requestedQn = options.qn ?? 80
     const forceMp4 = options.format === 'mp4'
-    const playUrl = new URL('https://api.bilibili.com/x/player/playurl')
-    playUrl.searchParams.set('bvid', bvid)
-    playUrl.searchParams.set('cid', String(cid))
-    playUrl.searchParams.set('qn', String(requestedQn))
-    // MP4 (durl) is only available with fnval=0 and caps at 720P; DASH
-    // (fnval=16) provides every quality including 1080P+.
-    playUrl.searchParams.set('fnval', forceMp4 ? '0' : '16')
-    playUrl.searchParams.set('fnver', '0')
-    playUrl.searchParams.set('fourk', '1')
-    playUrl.searchParams.set('platform', 'web')
-    const play = await fetchBiliJson<BiliPlayData>(playUrl.toString(), cookie)
-    if (play.code !== 0 || !play.data) throw new Error(play.message || 'bili_playurl_failed')
-
-    const accept = play.data.accept_quality ?? [play.data.quality ?? 64]
+    const { play } = await resolveBiliPlaybackData(bvid, page, forceMp4, cookie)
+    // The playurl response always contains every accepted quality; the caller
+    // picks the target from the list below. qn is fixed to 80 inside the cache
+    // loader — requesting a different qn does not change the returned DASH set.
+    const accept = play.accept_quality ?? [play.quality ?? 64]
     const qualities = [...new Set(accept)].sort((left, right) => right - left).map((qn) => ({ qn, label: biliQualityLabel(qn) }))
     const availableQns = qualities.map((item) => item.qn)
     const targetQn = availableQns.includes(requestedQn)
@@ -491,13 +529,13 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
     let format: 'mp4' | 'dash' = 'mp4'
     let videoUrl: string | null = null
     let audioUrl: string | null = null
-    let quality = play.data.quality ?? 64
+    let quality = play.quality ?? 64
     let proxyMode: 'worker' | 'builtin' = 'builtin'
 
     // 1080P and above are only available as DASH streams (video+audio split).
-    const dashVideos = play.data.dash?.video ?? []
+    const dashVideos = play.dash?.video ?? []
     const dashVideo = dashVideos.find((item) => item.id === targetQn)
-    const dashAudio = (play.data.dash?.audio ?? [])[0]
+    const dashAudio = (play.dash?.audio ?? [])[0]
     const dashVideoRaw = dashVideo?.baseUrl || dashVideo?.base_url
     const dashAudioRaw = dashAudio?.baseUrl || dashAudio?.base_url
 
@@ -517,9 +555,9 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
       }
     } else {
       // MP4 (durl) fallback used for low qualities or explicit fallback.
-      const durl = play.data.durl?.[0]?.url
+      const durl = play.durl?.[0]?.url
       if (!durl) throw new Error('bili_playurl_empty')
-      quality = play.data.quality ?? 64
+      quality = play.quality ?? 64
       const external = signProxyUrl(durl, referer, expiresAt, allowedOrigin)
       if (external) {
         videoUrl = external

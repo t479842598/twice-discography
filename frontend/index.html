@@ -6,6 +6,12 @@
     <meta name="theme-color" content="#f7a8b8" />
     <link rel="icon" type="image/png" href="/twice-logomark.png" />
     <link rel="apple-touch-icon" href="/twice-logomark.png" />
+    <!-- Connection warm-up for Bilibili MV resolution + CDN hosts (DESIGN_SPECS §6.4 方案8) -->
+    <link rel="preconnect" href="https://api.bilibili.com" crossorigin />
+    <link rel="preconnect" href="https://upos-sz-mirrorcos.bilivideo.com" crossorigin />
+    <link rel="preconnect" href="https://upos-sz-mirrorcoso1.bilivideo.com" crossorigin />
+    <link rel="dns-prefetch" href="https://upos-sz-mirrorcosb.bilivideo.com" />
+    <link rel="dns-prefetch" href="https://akamaized.net" />
     <title>TWICE Discography</title>
   </head>
   <body>

@@ -153,12 +153,12 @@ export const api = {
   adminBiliCredential: () => request<{ configured: boolean; usable: boolean; encryptionVersion: string | null; problem: string | null; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null }>('/admin/bili-credential'),
   adminSaveBiliCredential: (cookie: string) => request('/admin/bili-credential', { method: 'PUT', body: JSON.stringify({ cookie }) }),
   adminVerifyBiliCredential: () => request<{ ok: boolean; message: string }>('/admin/bili-credential/verify', { method: 'POST' }),
-  mvPlayback: (trackId: string, qn?: number, format?: 'mp4' | 'dash') => {
+  mvPlayback: (trackId: string, qn?: number, format?: 'mp4' | 'dash', signal?: AbortSignal) => {
     const search = new URLSearchParams()
     if (qn) search.set('qn', String(qn))
     if (format) search.set('format', format)
     const query = search.toString()
-    return request<MvPlaybackResponse>(`/mv/${encodeURIComponent(trackId)}/playback${query ? `?${query}` : ''}`)
+    return request<MvPlaybackResponse>(`/mv/${encodeURIComponent(trackId)}/playback${query ? `?${query}` : ''}`, signal ? { signal } : {})
   },
   homeFeaturedMvs: () => request<{ mvs: HomeFeaturedMv[] }>('/mv/home-featured'),
   adminStats: () => request<AdminStats>('/admin/stats'),
