@@ -12,7 +12,33 @@
       </div>
     </header>
 
-    <section class="admin-split-grid">
+    <section class="admin-bili-statusbar">
+      <div class="admin-bili-status-item">
+        <span class="admin-bili-status-icon" :class="{ 'is-ok': status?.usable }">
+          <n-icon :component="status?.usable ? ShieldCheckmarkOutline : AlertCircleOutline" />
+        </span>
+        <div>
+          <small>{{ t('admin.dashboard.workbench.status.title') }}</small>
+          <strong>{{ credentialStatusLabel }}</strong>
+        </div>
+      </div>
+      <div class="admin-bili-status-item">
+        <span class="admin-bili-status-icon" :class="{ 'is-ok': status?.lastVerifyStatus === 'ok' }">
+          <n-icon :component="status?.lastVerifyStatus === 'ok' ? CheckmarkCircleOutline : AlertCircleOutline" />
+        </span>
+        <div>
+          <small>{{ t('admin.bili.verifyStatus', { status: '' }) }}</small>
+          <strong>{{ translatedVerifyStatus }}</strong>
+        </div>
+      </div>
+      <div class="admin-bili-status-item is-note">
+        <div>
+          <small>{{ t('admin.bili.description') }}</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-bili-grid">
       <div class="admin-panel admin-credential-editor">
         <div class="admin-section-title">
           <div>
@@ -67,14 +93,11 @@
       </div>
 
       <aside class="admin-panel admin-credential-status">
-        <span class="admin-health-label">{{ t('admin.dashboard.workbench.status.title') }}</span>
+        <span class="admin-health-label">{{ t('admin.bili.verifyStatus', { status: '' }) }}</span>
         <strong>{{ credentialStatusLabel }}</strong>
         <div class="admin-status-list">
           <div v-if="translatedCredentialProblem">
             <span>{{ translatedCredentialProblem }}</span>
-          </div>
-          <div>
-            <span>{{ t('admin.bili.verifyStatus', { status: translatedVerifyStatus }) }}</span>
           </div>
           <div v-if="translatedLastVerifyMessage">
             <span>{{ translatedLastVerifyMessage }}</span>
@@ -87,7 +110,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AlertCircleOutline, CopyOutline, InformationCircleOutline, KeyOutline, RefreshOutline, SaveOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
+import { AlertCircleOutline, CheckmarkCircleOutline, CopyOutline, InformationCircleOutline, KeyOutline, RefreshOutline, SaveOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5'
 import { ApiError, api } from '@/api/client'
 import { useI18n } from '@/i18n'
 import type { MessageKey } from '@/i18n/messages'

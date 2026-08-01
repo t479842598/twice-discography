@@ -44,63 +44,60 @@
         </div>
       </div>
 
-      <div class="admin-table admin-mv-table">
-        <div class="admin-table-row admin-table-head admin-mv-table-row">
-          <span>{{ t('admin.mvs.column.song') }}</span>
-          <span>{{ t('admin.mvs.column.search') }}</span>
-          <span>{{ t('admin.mvs.column.biliLink') }}</span>
-          <span>P</span>
-          <span>{{ t('admin.mvs.column.cover') }}</span>
-          <span>{{ t('admin.mvs.column.home') }}</span>
-          <span>{{ t('admin.mvs.column.enabled') }}</span>
-          <span>{{ t('admin.common.actions') }}</span>
-        </div>
-        <div v-for="mv in mvs" :key="mv.trackId" class="admin-table-row admin-mv-table-row">
-          <div class="admin-table-cell admin-mv-title" :data-label="t('admin.mvs.column.song')">
-            <strong>{{ displayTitle(mv) }}</strong>
-            <small>{{ mv.trackId }} · {{ mv.albumName || t('admin.mvs.noAlbum') }}</small>
-          </div>
-          <div class="admin-table-cell admin-mv-search-cell" :data-label="t('admin.mvs.column.search')">
-            <n-button size="small" secondary tag="a" :href="biliSearchUrl(mv)" target="_blank" rel="noopener noreferrer">
-              <template #icon>
-                <n-icon :component="OpenOutline" />
-              </template>
-              {{ t('admin.mvs.biliSearch') }}
-            </n-button>
-          </div>
-          <div class="admin-table-cell admin-mv-link-cell" :data-label="t('admin.mvs.column.biliLink')">
-            <n-input v-model:value="linkInputs[mv.trackId]" size="small" :placeholder="t('admin.mvs.linkPlaceholder')" @keydown.enter.prevent="parseBiliLink(mv)">
-              <template #prefix>
-                <n-icon :component="LinkOutline" />
-              </template>
-            </n-input>
-            <n-input v-model:value="mv.biliBvid" size="small" :placeholder="t('admin.mvs.bvidPlaceholder')" />
-          </div>
-          <div class="admin-table-cell" data-label="P">
-            <n-input-number v-model:value="mv.biliPage" size="small" :min="1" :placeholder="t('admin.mvs.pagePlaceholder')" />
-          </div>
-          <div class="admin-table-cell admin-mv-cover-cell" :data-label="t('admin.mvs.column.cover')">
+      <div class="admin-card-list admin-mv-list">
+        <article v-for="mv in mvs" :key="mv.trackId" class="admin-media-card">
+          <div class="admin-media-cover">
             <img v-if="mv.coverUrl" :src="coverPreviewUrl(mv.coverUrl)" :alt="displayTitle(mv)" loading="lazy" decoding="async" />
             <span v-else class="admin-cover-placeholder" aria-hidden="true">
               <n-icon :component="ImageOutline" />
             </span>
-            <n-input v-model:value="mv.coverUrl" size="small" :placeholder="t('admin.mvs.coverPlaceholder')" />
           </div>
-          <div class="admin-table-cell admin-switch-cell" :data-label="t('admin.mvs.column.home')">
-            <n-switch v-model:value="mv.isHomeFeatured" size="small" />
+
+          <div class="admin-media-body">
+            <div class="admin-media-head">
+              <div class="admin-media-title">
+                <strong>{{ displayTitle(mv) }}</strong>
+                <small>{{ mv.trackId }} · {{ mv.albumName || t('admin.mvs.noAlbum') }}</small>
+              </div>
+              <div class="admin-media-switches">
+                <label class="admin-media-switch">
+                  <span>{{ t('admin.mvs.column.home') }}</span>
+                  <n-switch v-model:value="mv.isHomeFeatured" size="small" />
+                </label>
+                <label class="admin-media-switch">
+                  <span>{{ t('admin.mvs.column.enabled') }}</span>
+                  <n-switch v-model:value="mv.enabled" size="small" />
+                </label>
+              </div>
+            </div>
+
+            <div class="admin-media-fields">
+              <n-input v-model:value="linkInputs[mv.trackId]" size="small" :placeholder="t('admin.mvs.linkPlaceholder')" @keydown.enter.prevent="parseBiliLink(mv)">
+                <template #prefix>
+                  <n-icon :component="LinkOutline" />
+                </template>
+              </n-input>
+              <n-input v-model:value="mv.biliBvid" size="small" :placeholder="t('admin.mvs.bvidPlaceholder')" />
+              <n-input-number v-model:value="mv.biliPage" size="small" :min="1" :placeholder="t('admin.mvs.pagePlaceholder')" class="admin-media-page" />
+              <n-input v-model:value="mv.coverUrl" size="small" :placeholder="t('admin.mvs.coverPlaceholder')" class="admin-media-cover-url" />
+            </div>
+
+            <div class="admin-media-actions">
+              <n-button size="small" secondary tag="a" :href="biliSearchUrl(mv)" target="_blank" rel="noopener noreferrer">
+                <template #icon>
+                  <n-icon :component="OpenOutline" />
+                </template>
+                {{ t('admin.mvs.biliSearch') }}
+              </n-button>
+              <n-button size="small" secondary :loading="parsingTrackId === mv.trackId" @click="parseBiliLink(mv)">
+                <template #icon>
+                  <n-icon :component="RefreshOutline" />
+                </template>
+                {{ t('admin.mvs.parse') }}
+              </n-button>
+            </div>
           </div>
-          <div class="admin-table-cell admin-switch-cell" :data-label="t('admin.mvs.column.enabled')">
-            <n-switch v-model:value="mv.enabled" size="small" />
-          </div>
-          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
-            <n-button size="small" secondary :loading="parsingTrackId === mv.trackId" @click="parseBiliLink(mv)">
-              <template #icon>
-                <n-icon :component="RefreshOutline" />
-              </template>
-              {{ t('admin.mvs.parse') }}
-            </n-button>
-          </div>
-        </div>
+        </article>
       </div>
 
       <div class="admin-pagination-row">

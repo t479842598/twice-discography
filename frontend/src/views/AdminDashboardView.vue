@@ -34,37 +34,46 @@
 
       <div class="admin-console-main">
         <template v-if="activeTab === 'overview'">
-          <section class="admin-workbench-hero">
-            <div class="admin-workbench-copy">
+          <header class="admin-welcome">
+            <div class="admin-welcome-copy">
               <span class="admin-hero-live">{{ t('admin.dashboard.workbench.live') }}</span>
               <h1>{{ t('admin.dashboard.workbench.title') }}</h1>
               <p>{{ t('admin.dashboard.workbench.subtitle') }}</p>
-              <div class="admin-hero-eq" aria-hidden="true">
-                <span class="admin-hero-eq-bar"></span>
-                <span class="admin-hero-eq-bar"></span>
-                <span class="admin-hero-eq-bar"></span>
-                <span class="admin-hero-eq-bar"></span>
-                <span class="admin-hero-eq-bar"></span>
-              </div>
-              <div class="admin-workbench-actions" :aria-label="t('admin.dashboard.workbench.action.group')">
-                <button type="button" class="admin-primary-button" @click="activeTab = 'media'">
-                  <n-icon :component="VideocamOutline" />
-                  <span>{{ t('admin.dashboard.workbench.action.enterMedia') }}</span>
-                </button>
-                <button type="button" class="admin-secondary-button" @click="activeTab = 'playback'">
-                  <n-icon :component="KeyOutline" />
-                  <span>{{ t('admin.dashboard.workbench.action.verifyPlayback') }}</span>
-                </button>
-              </div>
             </div>
+            <div class="admin-welcome-actions" :aria-label="t('admin.dashboard.workbench.action.group')">
+              <span class="admin-status-pill is-ok">
+                <n-icon :component="CheckmarkCircleOutline" />
+                {{ t('admin.dashboard.workbench.status.ready') }}
+              </span>
+              <button type="button" class="admin-primary-button" @click="activeTab = 'media'">
+                <n-icon :component="VideocamOutline" />
+                <span>{{ t('admin.dashboard.workbench.action.enterMedia') }}</span>
+              </button>
+              <button type="button" class="admin-secondary-button" @click="activeTab = 'playback'">
+                <n-icon :component="KeyOutline" />
+                <span>{{ t('admin.dashboard.workbench.action.verifyPlayback') }}</span>
+              </button>
+            </div>
+          </header>
 
-            <aside class="admin-health-card" :aria-label="t('admin.dashboard.workbench.status.title')">
+          <section class="admin-bento" :aria-label="t('admin.dashboard.workbench.kpi.group')">
+            <article
+              v-for="(card, i) in kpiCards"
+              :key="card.title"
+              :class="['admin-bento-card', `is-${card.tone}`, { 'is-wide': i === 0 }]"
+            >
+              <span class="admin-kpi-meta"><span class="admin-kpi-led" aria-hidden="true"></span>{{ card.title }}</span>
+              <strong class="admin-kpi-value">{{ card.value }}</strong>
+              <p>{{ card.description }}</p>
+              <n-icon class="admin-kpi-icon" :component="card.icon" />
+            </article>
+
+            <aside class="admin-bento-card is-health" :aria-label="t('admin.dashboard.workbench.status.title')">
               <div class="admin-health-head">
                 <span class="admin-health-label">{{ t('admin.dashboard.workbench.status.title') }}</span>
+                <span class="admin-bento-badge">{{ t('admin.dashboard.workbench.status.ready') }}</span>
               </div>
-              <strong>{{ t('admin.dashboard.workbench.status.ready') }}</strong>
-              <p>{{ t('admin.dashboard.workbench.status.description') }}</p>
-              <ul>
+              <ul class="admin-health-list">
                 <li v-for="item in healthItems" :key="item">
                   <n-icon :component="CheckmarkCircleOutline" />
                   <span>{{ item }}</span>
@@ -73,13 +82,21 @@
             </aside>
           </section>
 
-          <section class="admin-kpi-grid" :aria-label="t('admin.dashboard.workbench.kpi.group')">
-            <article v-for="card in kpiCards" :key="card.title" :class="['admin-kpi-card', `is-${card.tone}`]">
-              <span class="admin-kpi-meta"><span class="admin-kpi-led" aria-hidden="true"></span>{{ card.title }}</span>
-              <strong class="admin-kpi-value">{{ card.value }}</strong>
-              <p>{{ card.description }}</p>
-              <n-icon class="admin-kpi-icon" :component="card.icon" />
-            </article>
+          <section class="admin-quickbar" :aria-label="t('admin.dashboard.workbench.modules.title')">
+            <button
+              v-for="entry in quickEntries"
+              :key="entry.tab"
+              type="button"
+              :class="['admin-quickbar-item', `is-${entry.tone}`]"
+              @click="activeTab = entry.tab"
+            >
+              <span class="admin-quickbar-icon"><n-icon :component="entry.icon" /></span>
+              <span class="admin-quickbar-copy">
+                <strong>{{ entry.title }}</strong>
+                <small>{{ entry.meta }}</small>
+              </span>
+              <n-icon class="admin-quickbar-arrow" :component="ArrowForwardOutline" />
+            </button>
           </section>
 
           <section class="admin-workbench-grid">
@@ -126,21 +143,6 @@
               </ol>
             </div>
           </section>
-
-          <section class="admin-grid admin-overview-grid" :aria-label="t('admin.dashboard.workbench.modules.title')">
-            <button
-              v-for="entry in quickEntries"
-              :key="entry.tab"
-              type="button"
-              :class="['admin-entry', `is-${entry.tone}`]"
-              @click="activeTab = entry.tab"
-            >
-              <span class="admin-entry-icon"><n-icon :component="entry.icon" /></span>
-              <span class="admin-entry-meta">{{ entry.meta }}</span>
-              <strong>{{ entry.title }}</strong>
-              <span>{{ entry.description }}</span>
-            </button>
-          </section>
         </template>
 
         <AdminMvsView v-else-if="activeTab === 'media'" />
@@ -179,6 +181,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   AlbumsOutline,
+  ArrowForwardOutline,
   CheckmarkCircleOutline,
   GridOutline,
   KeyOutline,

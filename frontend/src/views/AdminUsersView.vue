@@ -37,20 +37,17 @@
         </n-button>
       </div>
 
-      <div class="admin-table">
-        <div class="admin-table-row admin-table-head admin-user-table-row">
-          <span>{{ t('admin.users.column.account') }}</span>
-          <span>{{ t('admin.users.column.displayName') }}</span>
-          <span>{{ t('admin.users.column.roles') }}</span>
-          <span>{{ t('admin.common.actions') }}</span>
-        </div>
-        <div v-for="user in users" :key="user.id" class="admin-table-row admin-user-table-row">
-          <span class="admin-table-cell admin-account-cell" :data-label="t('admin.users.column.account')">{{ user.email }}</span>
-          <span class="admin-table-cell" :data-label="t('admin.users.column.displayName')">{{ user.displayName }}</span>
-          <div class="admin-table-cell admin-role-badges" :data-label="t('admin.users.column.roles')">
-            <span v-for="role in user.roles" :key="role" class="admin-role-chip">{{ roleLabel(role) }}</span>
+      <div class="admin-user-grid">
+        <article v-for="user in users" :key="user.id" class="admin-user-card">
+          <div class="admin-user-avatar" aria-hidden="true">{{ userInitial(user) }}</div>
+          <div class="admin-user-card-body">
+            <strong class="admin-user-name">{{ user.displayName }}</strong>
+            <span class="admin-user-email">{{ user.email }}</span>
+            <div class="admin-role-badges">
+              <span v-for="role in user.roles" :key="role" class="admin-role-chip">{{ roleLabel(role) }}</span>
+            </div>
           </div>
-          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
+          <div class="admin-user-card-actions">
             <n-button size="small" type="primary" secondary @click="openEditUser(user)">
               <template #icon>
                 <n-icon :component="CreateOutline" />
@@ -58,7 +55,7 @@
               {{ t('admin.common.edit') }}
             </n-button>
           </div>
-        </div>
+        </article>
       </div>
     </section>
 
@@ -82,25 +79,19 @@
         <n-button type="primary" @click="createRole">{{ t('admin.users.confirmAddRole') }}</n-button>
       </div>
 
-      <div class="admin-table">
-        <div class="admin-table-row admin-table-head admin-role-table-row">
-          <span>{{ t('admin.users.column.roleId') }}</span>
-          <span>{{ t('admin.users.column.roleName') }}</span>
-          <span>{{ t('admin.users.column.type') }}</span>
-          <span>{{ t('admin.common.actions') }}</span>
-        </div>
-        <div v-for="role in roles" :key="role.id" class="admin-table-row admin-role-table-row">
-          <span class="admin-table-cell admin-role-id" :data-label="t('admin.users.column.roleId')">{{ role.id }}</span>
-          <div class="admin-table-cell" :data-label="t('admin.users.column.roleName')">
+      <div class="admin-card-list admin-role-list">
+        <article v-for="role in roles" :key="role.id" class="admin-role-card">
+          <span class="admin-role-id">{{ role.id }}</span>
+          <div class="admin-role-card-name">
             <span v-if="role.system" class="admin-role-chip">{{ roleLabel(role.id) }}</span>
             <n-input v-else v-model:value="role.label" size="small" />
           </div>
-          <span class="admin-table-cell" :data-label="t('admin.users.column.type')">{{ role.system ? t('admin.users.systemRole') : t('admin.users.customRole') }}</span>
-          <div class="admin-table-cell admin-inline-actions" :data-label="t('admin.common.actions')">
+          <span class="admin-role-type">{{ role.system ? t('admin.users.systemRole') : t('admin.users.customRole') }}</span>
+          <div class="admin-inline-actions">
             <n-button size="small" type="primary" text @click="saveRole(role)">{{ t('admin.common.saveChanges') }}</n-button>
             <n-button size="small" type="error" text :disabled="role.system" @click="deleteRole(role)">{{ t('admin.common.delete') }}</n-button>
           </div>
-        </div>
+        </article>
       </div>
     </section>
 
@@ -186,6 +177,10 @@ async function loadRoles() {
 
 async function refreshAll() {
   await Promise.all([loadUsers(), loadRoles()])
+}
+
+function userInitial(user: AdminUser) {
+  return (user.displayName || user.email || '?').trim().slice(0, 1).toUpperCase()
 }
 
 function roleLabel(roleId: string) {

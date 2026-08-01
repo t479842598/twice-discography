@@ -784,7 +784,487 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 16%, transparent);
 }
 
+/* ── Welcome Bar (overview) ────────────────────────────── */
+.admin-welcome {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 4px 2px 20px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-welcome-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 280px;
+}
+
+.admin-welcome-copy h1 {
+  margin: 0;
+  color: var(--admin-heading);
+  font-family: var(--admin-font-display);
+  font-size: clamp(26px, 3.2vw, 38px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.admin-welcome-copy p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--admin-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.admin-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ── Bento Grid (overview) ─────────────────────────────── */
+.admin-bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+  align-items: stretch;
+}
+
+.admin-bento-card {
+  --kpi-color: var(--admin-media);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  grid-template-areas:
+    "meta icon"
+    "value icon"
+    "desc desc";
+  gap: 8px 12px;
+  min-height: 148px;
+  padding: 22px;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-md);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.admin-bento-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 0 0 8px 8px;
+  background: var(--admin-accent-gradient);
+  opacity: 0.9;
+}
+
+.admin-bento-card.is-success { --kpi-color: var(--admin-success); }
+.admin-bento-card.is-warning { --kpi-color: var(--admin-warning); }
+.admin-bento-card.is-content { --kpi-color: var(--admin-content); }
+.admin-bento-card.is-access { --kpi-color: var(--admin-access); }
+
+/* pending MV — wide feature card */
+.admin-bento-card.is-wide {
+  grid-column: span 2;
+  min-height: 148px;
+  background:
+    radial-gradient(ellipse 90% 90% at 100% 0%, color-mix(in srgb, var(--kpi-color) 16%, transparent) 0%, transparent 60%),
+    var(--admin-surface);
+}
+
+.admin-bento-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--kpi-color) 36%, var(--admin-border));
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.admin-bento-card.is-health {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background:
+    radial-gradient(ellipse 120% 60% at 50% -10%, color-mix(in srgb, var(--admin-success) 9%, transparent) 0%, transparent 70%),
+    var(--admin-surface);
+}
+
+.admin-bento-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--admin-success) 10%, var(--admin-surface));
+  border: 1px solid color-mix(in srgb, var(--admin-success) 30%, var(--admin-border));
+  color: var(--admin-success);
+  font-family: var(--admin-font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.admin-bento-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--admin-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 16%, transparent);
+}
+
+.admin-health-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-health-list li {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--admin-border);
+  border-radius: 13px;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.admin-health-list li .n-icon {
+  color: var(--admin-success);
+  font-size: 16px;
+}
+
+/* ── Quick Bar (overview) ──────────────────────────────── */
+.admin-quickbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.admin-quickbar-item {
+  --qb-color: var(--admin-media);
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 13px 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 18px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--admin-shadow-sm);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font: inherit;
+}
+
+.admin-quickbar-item.is-media { --qb-color: var(--admin-media); }
+.admin-quickbar-item.is-content { --qb-color: var(--admin-content); }
+.admin-quickbar-item.is-playback { --qb-color: var(--admin-playback); }
+.admin-quickbar-item.is-access { --qb-color: var(--admin-access); }
+
+.admin-quickbar-item:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--qb-color) 40%, var(--admin-border-strong));
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.admin-quickbar-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--qb-color) 13%, transparent);
+  color: var(--qb-color);
+  font-size: 23px;
+}
+
+.admin-quickbar-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-quickbar-copy strong {
+  color: var(--admin-heading);
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-quickbar-copy small {
+  color: var(--admin-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-quickbar-arrow {
+  color: var(--admin-muted);
+  font-size: 16px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.admin-quickbar-item:hover .admin-quickbar-arrow {
+  transform: translateX(3px);
+  color: var(--qb-color);
+}
+
+/* ── Card List (tables → cards) ────────────────────────── */
+.admin-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-card-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 18px;
+  background: var(--admin-surface);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-card-row:hover {
+  border-color: color-mix(in srgb, var(--admin-brand) 32%, var(--admin-border));
+  box-shadow: var(--admin-shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ── Media Card (MV list) ──────────────────────────────── */
+.admin-media-card {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-media-card:hover {
+  border-color: color-mix(in srgb, var(--admin-brand) 30%, var(--admin-border));
+  box-shadow: var(--admin-shadow-md);
+  transform: translateY(-2px);
+}
+
+.admin-media-cover {
+  align-self: start;
+}
+
+.admin-media-cover img {
+  display: block;
+  width: 128px;
+  height: 80px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border);
+  object-fit: cover;
+}
+
+.admin-media-cover .admin-cover-placeholder {
+  width: 128px;
+  height: 80px;
+  border-radius: 14px;
+  font-size: 26px;
+}
+
+.admin-media-body {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-media-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.admin-media-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-media-title strong {
+  color: var(--admin-heading);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.admin-media-title small {
+  color: var(--admin-muted);
+  font-family: var(--admin-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.admin-media-switches {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.admin-media-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-media-fields {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.4fr) minmax(120px, 0.7fr) 74px minmax(160px, 1fr);
+  gap: 10px;
+}
+
+.admin-media-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── User Card Grid ─────────────────────────────────────── */
+.admin-user-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.admin-user-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "avatar body actions"
+    "avatar body actions";
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-user-card:hover {
+  border-color: color-mix(in srgb, var(--admin-brand) 30%, var(--admin-border));
+  box-shadow: var(--admin-shadow-md);
+  transform: translateY(-2px);
+}
+
+.admin-user-avatar {
+  grid-area: avatar;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--admin-accent-gradient);
+  color: #ffffff;
+  font-family: var(--admin-font-display);
+  font-size: 22px;
+  box-shadow: var(--admin-shadow-brand);
+}
+
+.admin-user-card-body {
+  grid-area: body;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-user-name {
+  color: var(--admin-heading);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.admin-user-email {
+  color: var(--admin-muted);
+  font-family: var(--admin-font-mono);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.admin-user-card-actions {
+  grid-area: actions;
+}
+
+/* ── Role Card ─────────────────────────────────────────── */
+.admin-role-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(200px, 1.2fr) minmax(110px, 0.5fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 18px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-role-card:hover {
+  border-color: color-mix(in srgb, var(--admin-access) 28%, var(--admin-border));
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-role-card-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-role-type {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* ── Grids ─────────────────────────────────────────────── */
+
+
+
+
+
+
 .admin-kpi-grid,
 .admin-overview-grid,
 .admin-workbench-grid,
@@ -1741,7 +2221,92 @@
   animation: candy-pulse 2.4s ease-in-out infinite;
 }
 
+/* ── Bili Status Bar ────────────────────────────────────── */
+.admin-bili-statusbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-bili-status-item {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  padding-right: 14px;
+  border-right: 1px solid var(--admin-border);
+}
+
+.admin-bili-status-item:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.admin-bili-status-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--admin-warning) 12%, transparent);
+  color: var(--admin-warning);
+  font-size: 22px;
+}
+
+.admin-bili-status-icon.is-ok {
+  background: color-mix(in srgb, var(--admin-success) 12%, transparent);
+  color: var(--admin-success);
+}
+
+.admin-bili-status-item > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-bili-status-item small {
+  color: var(--admin-muted);
+  font-family: var(--admin-font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.admin-bili-status-item strong {
+  color: var(--admin-heading);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.admin-bili-status-item.is-note small {
+  font-family: var(--admin-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.6;
+}
+
+/* ── Bili Grid ─────────────────────────────────────────── */
+.admin-bili-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) minmax(280px, 0.7fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
 /* ── Split Grid (Bili settings) ────────────────────────── */
+
+
 .admin-split-grid {
   grid-template-columns: minmax(340px, 1fr) minmax(280px, 0.7fr);
 }
@@ -1821,8 +2386,25 @@
   .admin-workbench-grid,
   .admin-content-grid,
   .admin-split-grid,
+  .admin-bili-grid,
   .admin-login-shell {
     grid-template-columns: 1fr;
+  }
+
+  .admin-bili-statusbar {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-bili-status-item {
+    border-right: 0;
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--admin-border);
+  }
+
+  .admin-bili-status-item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
   }
 
   .admin-toolbar {
@@ -1831,6 +2413,23 @@
 
   .admin-toolbar-actions {
     justify-content: flex-start;
+  }
+
+  .admin-media-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-bento-card.is-wide,
+  .admin-bento-card.is-health {
+    grid-column: span 2;
+  }
+
+  .admin-quickbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-user-table-row,
@@ -1921,8 +2520,35 @@
   }
 
   .admin-kpi-grid,
-  .admin-overview-grid {
+  .admin-overview-grid,
+  .admin-bento,
+  .admin-quickbar {
     grid-template-columns: 1fr;
+  }
+
+  .admin-media-card {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-media-cover img,
+  .admin-media-cover .admin-cover-placeholder {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .admin-media-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-media-switches {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .admin-bento-card.is-wide,
+  .admin-bento-card.is-health {
+    grid-column: span 1;
   }
 
   .admin-kpi-card {
@@ -1971,6 +2597,18 @@
   .admin-mv-cover-cell,
   .admin-role-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-user-card {
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-areas:
+      "avatar body"
+      "actions actions";
+  }
+
+  .admin-role-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .admin-switch-cell {
