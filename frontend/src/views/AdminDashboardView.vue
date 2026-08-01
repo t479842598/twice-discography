@@ -56,7 +56,19 @@
             </div>
           </header>
 
-          <section class="admin-bento" :aria-label="t('admin.dashboard.workbench.kpi.group')">
+          <section v-if="overviewLoading" class="admin-bento" aria-hidden="true">
+            <div v-for="n in 4" :key="'b' + n" class="admin-bento-card admin-bento-skeleton">
+              <span class="admin-skel-line admin-skel-line-sm"></span>
+              <span class="admin-skel-line admin-skel-line-lg"></span>
+              <span class="admin-skel-line admin-skel-line-md"></span>
+            </div>
+            <div class="admin-bento-card is-health admin-bento-skeleton">
+              <span class="admin-skel-line admin-skel-line-sm"></span>
+              <span v-for="n in 3" :key="'h' + n" class="admin-skel-line admin-skel-line-md"></span>
+            </div>
+          </section>
+
+          <section v-else class="admin-bento" :aria-label="t('admin.dashboard.workbench.kpi.group')">
             <article
               v-for="(card, i) in kpiCards"
               :key="card.title"
@@ -132,7 +144,16 @@
                   <p>{{ t('admin.dashboard.workbench.activity.subtitle') }}</p>
                 </div>
               </div>
-              <ol class="admin-activity-list">
+              <ol v-if="overviewLoading" class="admin-activity-list" aria-hidden="true">
+                <li v-for="n in 3" :key="'a' + n">
+                  <span class="admin-skel-line admin-skel-line-xs"></span>
+                  <div>
+                    <span class="admin-skel-line admin-skel-line-md"></span>
+                    <span class="admin-skel-line admin-skel-line-sm"></span>
+                  </div>
+                </li>
+              </ol>
+              <ol v-else class="admin-activity-list">
                 <li v-for="item in activityList" :key="item.title">
                   <span>{{ item.time }}</span>
                   <div>
@@ -219,6 +240,7 @@ const adminTabs = computed<Array<{ name: AdminTab; label: string; tone: Tone; ic
 
 const stats = ref<AdminStats | null>(null)
 const activityItems = ref<AdminActivityItem[]>([])
+const overviewLoading = ref(true)
 
 onMounted(async () => {
   const [s, a] = await Promise.all([
@@ -227,6 +249,7 @@ onMounted(async () => {
   ])
   stats.value = s
   activityItems.value = a.items
+  overviewLoading.value = false
 })
 
 function formatBytes(bytes: number) {

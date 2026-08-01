@@ -12,7 +12,17 @@
       </div>
     </header>
 
-    <section class="admin-bili-statusbar">
+    <section v-if="statusLoading" class="admin-bili-statusbar" aria-hidden="true">
+      <div v-for="n in 3" :key="'sb' + n" class="admin-bili-status-item">
+        <span class="admin-skel-block admin-skel-icon"></span>
+        <div>
+          <span class="admin-skel-line admin-skel-line-xs"></span>
+          <span class="admin-skel-line admin-skel-line-md"></span>
+        </div>
+      </div>
+    </section>
+
+    <section v-else class="admin-bili-statusbar">
       <div class="admin-bili-status-item">
         <span class="admin-bili-status-icon" :class="{ 'is-ok': status?.usable }">
           <n-icon :component="status?.usable ? ShieldCheckmarkOutline : AlertCircleOutline" />
@@ -92,7 +102,17 @@
         <p v-if="message" class="admin-message">{{ message }}</p>
       </div>
 
-      <aside class="admin-panel admin-credential-status">
+      <aside v-if="statusLoading" class="admin-panel admin-credential-status" aria-hidden="true">
+        <span class="admin-skel-line admin-skel-line-sm"></span>
+        <span class="admin-skel-line admin-skel-line-lg"></span>
+        <div class="admin-status-list">
+          <div v-for="n in 2" :key="'c' + n">
+            <span class="admin-skel-line admin-skel-line-md"></span>
+          </div>
+        </div>
+      </aside>
+
+      <aside v-else class="admin-panel admin-credential-status">
         <span class="admin-health-label">{{ t('admin.bili.verifyStatus', { status: '' }) }}</span>
         <strong>{{ credentialStatusLabel }}</strong>
         <div class="admin-status-list">
@@ -119,6 +139,7 @@ const { t } = useI18n()
 const cookie = ref('')
 const message = ref('')
 const status = ref<{ configured: boolean; usable: boolean; encryptionVersion: string | null; problem: string | null; lastVerifiedAt: number | null; lastVerifyStatus: string | null; lastVerifyMessage: string | null } | null>(null)
+const statusLoading = ref(true)
 
 const credentialStatusLabel = computed(() => t('admin.bili.configStatus', {
   status: status.value?.usable ? t('admin.bili.configured') : t('admin.bili.notConfigured'),
@@ -151,7 +172,12 @@ const translatedVerifyStatus = computed(() => {
 const translatedLastVerifyMessage = computed(() => localizeBiliMessage(status.value?.lastVerifyMessage))
 
 async function loadStatus() {
-  status.value = await api.adminBiliCredential()
+  statusLoading.value = true
+  try {
+    status.value = await api.adminBiliCredential()
+  } finally {
+    statusLoading.value = false
+  }
 }
 
 async function saveCookie() {

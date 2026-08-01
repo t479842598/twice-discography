@@ -44,7 +44,23 @@
         </div>
       </div>
 
-      <div class="admin-card-list admin-mv-list">
+      <div v-if="loading && !mvs.length" class="admin-card-list admin-mv-list" aria-hidden="true">
+        <article v-for="n in 3" :key="'sk' + n" class="admin-media-card admin-media-skeleton">
+          <span class="admin-skel-block admin-skel-cover"></span>
+          <div class="admin-media-body">
+            <div class="admin-media-head">
+              <span class="admin-skel-line admin-skel-line-md"></span>
+              <span class="admin-skel-line admin-skel-line-sm"></span>
+            </div>
+            <div class="admin-media-fields">
+              <span v-for="m in 4" :key="'f' + m" class="admin-skel-line admin-skel-line-md"></span>
+            </div>
+            <span class="admin-skel-line admin-skel-line-xs"></span>
+          </div>
+        </article>
+      </div>
+
+      <div v-else class="admin-card-list admin-mv-list">
         <article v-for="mv in mvs" :key="mv.trackId" class="admin-media-card">
           <div class="admin-media-cover">
             <img v-if="mv.coverUrl" :src="coverPreviewUrl(mv.coverUrl)" :alt="displayTitle(mv)" loading="lazy" decoding="async" />

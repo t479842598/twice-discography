@@ -2599,6 +2599,16 @@
     grid-template-columns: 1fr;
   }
 
+  .admin-role-skeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-skel-cover {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
   .admin-user-card {
     grid-template-columns: 46px minmax(0, 1fr);
     grid-template-areas:
@@ -2626,7 +2636,90 @@
   }
 }
 
+/* ── Skeleton Loading ───────────────────────────────────── */
+.admin-skel-line,
+.admin-skel-block {
+  display: block;
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--admin-muted) 14%, transparent) 40%,
+      color-mix(in srgb, var(--admin-muted) 26%, transparent) 50%,
+      color-mix(in srgb, var(--admin-muted) 14%, transparent) 60%
+    );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.admin-skel-line-xs { height: 12px; width: 46%; }
+.admin-skel-line-sm { height: 14px; width: 62%; }
+.admin-skel-line-md { height: 16px; width: 100%; }
+.admin-skel-line-lg { height: 30px; width: 34%; }
+
+.admin-skel-block {
+  border: 1px solid var(--admin-border);
+  background: color-mix(in srgb, var(--admin-muted) 12%, transparent);
+}
+
+.admin-skel-cover {
+  width: 128px;
+  height: 80px;
+  border-radius: 14px;
+}
+
+.admin-skel-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+}
+
+.admin-skel-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.admin-bento-skeleton {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 148px;
+}
+
+.admin-bento-skeleton.is-health {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-media-skeleton .admin-media-body {
+  align-content: start;
+}
+
+.admin-user-skeleton {
+  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-areas: "avatar body";
+}
+
+.admin-user-skeleton .admin-user-card-body {
+  grid-area: body;
+}
+
+.admin-role-skeleton {
+  grid-template-columns: 1fr 1.4fr 0.6fr 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ── Reduced Motion ────────────────────────────────────── */
+
+
 @media (prefers-reduced-motion: reduce) {
   .admin-page *,
   .admin-page *::before,

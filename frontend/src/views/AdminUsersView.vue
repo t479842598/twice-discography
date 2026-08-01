@@ -37,7 +37,18 @@
         </n-button>
       </div>
 
-      <div class="admin-user-grid">
+      <div v-if="loading" class="admin-user-grid" aria-hidden="true">
+        <article v-for="n in 3" :key="'su' + n" class="admin-user-card admin-user-skeleton">
+          <span class="admin-skel-block admin-skel-avatar"></span>
+          <div class="admin-user-card-body">
+            <span class="admin-skel-line admin-skel-line-md"></span>
+            <span class="admin-skel-line admin-skel-line-sm"></span>
+            <span class="admin-skel-line admin-skel-line-xs"></span>
+          </div>
+        </article>
+      </div>
+
+      <div v-else class="admin-user-grid">
         <article v-for="user in users" :key="user.id" class="admin-user-card">
           <div class="admin-user-avatar" aria-hidden="true">{{ userInitial(user) }}</div>
           <div class="admin-user-card-body">
@@ -79,7 +90,16 @@
         <n-button type="primary" @click="createRole">{{ t('admin.users.confirmAddRole') }}</n-button>
       </div>
 
-      <div class="admin-card-list admin-role-list">
+      <div v-if="loading" class="admin-card-list admin-role-list" aria-hidden="true">
+        <article v-for="n in 3" :key="'sr' + n" class="admin-role-card admin-role-skeleton">
+          <span class="admin-skel-line admin-skel-line-sm"></span>
+          <span class="admin-skel-line admin-skel-line-md"></span>
+          <span class="admin-skel-line admin-skel-line-xs"></span>
+          <span class="admin-skel-line admin-skel-line-sm"></span>
+        </article>
+      </div>
+
+      <div v-else class="admin-card-list admin-role-list">
         <article v-for="role in roles" :key="role.id" class="admin-role-card">
           <span class="admin-role-id">{{ role.id }}</span>
           <div class="admin-role-card-name">
@@ -167,6 +187,8 @@ const userForm = reactive({
   roles: ['editor'] as string[],
 })
 
+const loading = ref(true)
+
 async function loadUsers() {
   users.value = (await api.adminUsers()).users
 }
@@ -176,7 +198,12 @@ async function loadRoles() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadUsers(), loadRoles()])
+  loading.value = true
+  try {
+    await Promise.all([loadUsers(), loadRoles()])
+  } finally {
+    loading.value = false
+  }
 }
 
 function userInitial(user: AdminUser) {
