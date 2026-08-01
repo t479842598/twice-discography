@@ -68,7 +68,9 @@ export async function registerMvRoutes(app: FastifyInstance) {
     const expiresAt = Number(query.exp ?? '0')
     const token = String(query.t ?? '')
     const qn = Number(query.qn ?? '64')
-    const kind = query.kind === 'audio' ? 'audio' : 'video'
+    // kind: 'video'|'audio' → DASH split streams; 'mp4' → the muxed durl MP4
+    // (has an audio track) used by the MP4 fallback path.
+    const kind = query.kind === 'audio' ? 'audio' : query.kind === 'mp4' ? 'mp4' : 'video'
     const now = Date.now()
     if (
       !Number.isFinite(expiresAt) ||
@@ -93,19 +95,27 @@ export async function registerMvRoutes(app: FastifyInstance) {
     if (!cookie) return reply.code(502).send({ error: 'bili_credential_not_configured' })
 
     try {
-      // view+playurl resolution is TTL-cached (8 min) and shared with the
-      // /playback route, so repeat streams do not re-hit the Bilibili API.
-      const { play } = await resolveBiliPlaybackData(bvid, page, false, cookie)
       let targetUrl: string | null = null
-      if (kind === 'audio') {
-        const audio = (play.dash?.audio ?? [])[0]
-        const audioUrl = audio?.baseUrl || audio?.base_url || null
-        if (!audioUrl) throw new Error('bili_playurl_empty')
-        targetUrl = audioUrl
+      if (kind === 'mp4') {
+        // Muxed durl MP4 (video+audio in one file) for the fallback path.
+        const mp4 = await resolveBiliPlaybackData(bvid, page, true, cookie)
+        const durl = mp4.play.durl?.[0]?.url
+        if (!durl) throw new Error('bili_playurl_empty')
+        targetUrl = durl
       } else {
-        const dashVideo = (play.dash?.video ?? []).find((item) => item.id === qn)
-        targetUrl = (dashVideo?.baseUrl || dashVideo?.base_url) || play.durl?.[0]?.url || null
-        if (!targetUrl) throw new Error('bili_playurl_empty')
+        // view+playurl resolution is TTL-cached (8 min) and shared with the
+        // /playback route, so repeat streams do not re-hit the Bilibili API.
+        const { play } = await resolveBiliPlaybackData(bvid, page, false, cookie)
+        if (kind === 'audio') {
+          const audio = (play.dash?.audio ?? [])[0]
+          const audioUrl = audio?.baseUrl || audio?.base_url || null
+          if (!audioUrl) throw new Error('bili_playurl_empty')
+          targetUrl = audioUrl
+        } else {
+          const dashVideo = (play.dash?.video ?? []).find((item) => item.id === qn)
+          targetUrl = (dashVideo?.baseUrl || dashVideo?.base_url) || play.durl?.[0]?.url || null
+          if (!targetUrl) throw new Error('bili_playurl_empty')
+        }
       }
 
       const range = request.headers.range
@@ -133,7 +143,12 @@ export async function registerMvRoutes(app: FastifyInstance) {
         const value = response.headers.get(header)
         if (value) reply.header(header, value)
       }
-      reply.header('cache-control', 'private, max-age=3600')
+      // The same signed stream URL is fetched with different Range headers
+      // (DASH chunk fetching + native player seeks). The browser cache must
+      // key on Range or every chunk after the first is served the cached
+      // first 2MB — which breaks DASH parsing and silences the audio track.
+      reply.header('cache-control', 'private, max-age=600')
+      reply.header('vary', 'Range, Origin')
       const stream = Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
       stream.on('error', () => {
         // Client disconnected or upstream broke mid-stream; nothing to send.

@@ -63,20 +63,6 @@
         <n-icon><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></n-icon>
         {{ playbackMessage }}
       </p>
-      <div v-if="biliBvid" class="mv-mode-row" role="group" :aria-label="t('mv.playerMode')">
-        <span class="mv-quality-label">{{ t('mv.playerMode') }}</span>
-        <button
-          v-for="mode in playerModes"
-          :key="mode"
-          type="button"
-          class="mv-quality-chip"
-          :class="{ 'is-active': playerMode === mode }"
-          :aria-pressed="playerMode === mode"
-          @click="setPlayerMode(mode)"
-        >
-          {{ playerModeLabel(mode) }}
-        </button>
-      </div>
       <div v-if="isMobile" class="mv-player-actions">
         <n-button v-if="ytVideoId" text tag="a" :href="`https://www.youtube.com/watch?v=${ytVideoId}`" target="_blank" rel="noopener noreferrer">
           {{ t('mv.openYoutube') }}
@@ -139,30 +125,18 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 let dashCleanup: (() => void) | null = null
 let playbackAbort: AbortController | null = null
 let playbackFetchAbort: AbortController | null = null
-let autoUpgradeDone = false
-let autoUpgradeTimer: number | null = null
 
-// ---- Playback channel preference (DESIGN_SPECS §6.4 方案10) ----
-const MV_PLAYER_MODE_KEY = 'twice.mvPlayerMode.v1'
+// ---- Quality preference (DESIGN_SPECS §6.4 方案4) ----
+// Product requirement: the site never plays below 1080P (qn 80).
+const MIN_QUALITY = 80
 const MV_QUALITY_PREF_KEY = 'twice.mvQuality.v1'
 const KNOWN_QUALITIES = new Set([127, 126, 125, 120, 116, 112, 100, 80, 74, 64, 48, 32, 16, 6])
-const playerModes = ['auto', 'iframe'] as const
-const playerMode = ref<'auto' | 'iframe'>(readPlayerMode())
-
-function readPlayerMode(): 'auto' | 'iframe' {
-  try {
-    // 'proxy' was folded into 'auto' (they behaved identically); map it back.
-    if (localStorage.getItem(MV_PLAYER_MODE_KEY) === 'iframe') return 'iframe'
-  } catch {
-    // ignore
-  }
-  return 'auto'
-}
 
 function readQualityPref() {
   try {
     const qn = Number(localStorage.getItem(MV_QUALITY_PREF_KEY))
-    return KNOWN_QUALITIES.has(qn) ? qn : null
+    // Ignore older sub-1080P preferences.
+    return KNOWN_QUALITIES.has(qn) && qn >= MIN_QUALITY ? qn : null
   } catch {
     return null
   }
@@ -176,8 +150,11 @@ function saveQualityPref(qn: number) {
   }
 }
 
-function playerModeLabel(mode: 'auto' | 'iframe') {
-  return mode === 'iframe' ? t('mv.modeIframe') : t('mv.modeAuto')
+function availableQualityOptions(playback: MvPlaybackResponse) {
+  const all = playback.qualities?.length ? playback.qualities : []
+  if (!all.length) return []
+  const hd = all.filter((option) => option.qn >= MIN_QUALITY)
+  return hd.length ? hd : all
 }
 
 const posterStyle = computed(() => (props.poster ? { backgroundImage: `url(${props.poster})` } : {}))
@@ -222,8 +199,6 @@ watch(
     videoBuffering.value = false
     videoPlaying.value = false
     videoPaused.value = false
-    autoUpgradeDone = false
-    clearAutoUpgradeTimer()
     proxyVideoUrl.value = ''
     proxyAudioUrl.value = ''
     playbackFormat.value = 'mp4'
@@ -237,11 +212,9 @@ watch(
 )
 
 async function applyPlayback(playback: MvPlaybackResponse) {
-  // The user switched to the official player while this response was in flight.
-  if (playerMode.value === 'iframe') return
   fallbackBiliIframeUrl.value = playback.fallbackIframeUrl
   selectedQn.value = playback.quality
-  qualityOptions.value = playback.qualities?.length ? playback.qualities : []
+  qualityOptions.value = availableQualityOptions(playback)
 
   if (playback.videoUrl) {
     playbackMessage.value = playback.quality ? t('mv.proxyReadyQuality', { quality: biliQualityLabel(playback.quality) }) : t('mv.proxyReady')
@@ -265,7 +238,7 @@ async function applyPlayback(playback: MvPlaybackResponse) {
           })
           videoLoading.value = false
         } catch {
-          // Fall back to the highest MP4 quality (720P) when DASH/MSE fails.
+          // Fall back to the muxed MP4 stream when DASH/MSE fails.
           videoLoading.value = false
           if (!controller.signal.aborted) await fallbackToMp4()
         }
@@ -285,7 +258,7 @@ async function applyPlayback(playback: MvPlaybackResponse) {
 }
 
 async function fallbackToMp4() {
-  if (!props.trackId || playerMode.value === 'iframe') return
+  if (!props.trackId) return
   try {
     teardownDash()
     const mp4 = await api.mvPlayback(props.trackId, 64, 'mp4')
@@ -293,7 +266,8 @@ async function fallbackToMp4() {
       playbackFormat.value = 'mp4'
       proxyVideoUrl.value = mp4.videoUrl
       proxyAudioUrl.value = ''
-      qualityOptions.value = mp4.qualities?.length ? mp4.qualities : qualityOptions.value
+      const mp4Options = availableQualityOptions(mp4)
+      qualityOptions.value = mp4Options.length ? mp4Options : qualityOptions.value
       selectedQn.value = mp4.quality
       playbackMessage.value = mp4.quality ? t('mv.proxyReadyQuality', { quality: biliQualityLabel(mp4.quality) }) : t('mv.proxyReady')
       await nextTick()
@@ -308,23 +282,20 @@ async function fallbackToMp4() {
 
 let qualitySwitchSeq = 0
 
-async function switchQuality(qn: number, preserveTime = false) {
+async function switchQuality(qn: number) {
   if (!props.trackId) return
   const seq = ++qualitySwitchSeq
-  const resumeAt = preserveTime ? (videoRef.value?.currentTime || 0) : 0
   isSwitchingQuality.value = true
   playbackAbort?.abort()
   const controller = new AbortController()
   playbackAbort = controller
   try {
     saveQualityPref(qn)
-    autoUpgradeDone = true
     const playback = await api.mvPlayback(props.trackId, qn, undefined, controller.signal)
-    if (seq !== qualitySwitchSeq || !showModal.value || controller.signal.aborted || playerMode.value === 'iframe') return
+    if (seq !== qualitySwitchSeq || !showModal.value || controller.signal.aborted) return
     if (playback.videoUrl) {
       teardownDash()
       await applyPlayback(playback)
-      if (resumeAt > 0) restorePlaybackTime(resumeAt, !videoPaused.value)
     }
   } catch {
     if (seq === qualitySwitchSeq && showModal.value && !controller.signal.aborted) playbackMessage.value = t('mv.proxyFallback')
@@ -345,7 +316,6 @@ watch(showModal, (val) => {
 })
 
 function stopVideo() {
-  clearAutoUpgradeTimer()
   teardownDash()
   playbackAbort?.abort()
   playbackAbort = null
@@ -363,7 +333,7 @@ function stopVideo() {
 }
 
 async function openPlayback() {
-  if (playerMode.value === 'iframe' || !props.trackId || !props.biliBvid) {
+  if (!props.trackId || !props.biliBvid) {
     videoLoading.value = false
     return
   }
@@ -371,90 +341,19 @@ async function openPlayback() {
   playbackAbort?.abort()
   const controller = new AbortController()
   playbackAbort = controller
-  // Start at a low quality for a fast first frame, then upgrade once the
-  // stream is stable to the user's remembered quality (DESIGN_SPECS §6.4 方案4).
-  const targetQn = readQualityPref() ?? 80
-  const startQn = Math.min(targetQn, 32)
+  // Start directly at the minimum supported quality (1080P) or the user's
+  // remembered 1080P+ preference — no low-start downgrade (DESIGN_SPECS §6.4 方案4).
+  const targetQn = readQualityPref() ?? MIN_QUALITY
   try {
-    const playback = await api.mvPlayback(props.trackId, startQn, undefined, controller.signal)
+    const playback = await api.mvPlayback(props.trackId, targetQn, undefined, controller.signal)
     if (!showModal.value || controller.signal.aborted) return
     await applyPlayback(playback)
-    maybeAutoUpgrade(targetQn)
   } catch {
     if (!showModal.value || controller.signal.aborted) return
     playbackMessage.value = t('mv.proxyFallback')
   } finally {
     if (showModal.value && !controller.signal.aborted) videoLoading.value = false
   }
-}
-
-function maybeAutoUpgrade(targetQn: number) {
-  if (autoUpgradeDone || !props.trackId) return
-  const current = selectedQn.value
-  if (current == null || current >= targetQn) return
-  if (!qualityOptions.value.some((option) => option.qn >= targetQn)) return
-  // Don't disrupt a video that is already watched deep (the new quality stream
-  // re-downloads sequentially from byte 0 up to the seek position).
-  if ((videoRef.value?.currentTime || 0) > 180) return
-
-  clearAutoUpgradeTimer()
-  let fired = false
-  const attempt = () => {
-    if (fired || !showModal.value) return
-    if (videoBuffering.value || !videoPlaying.value || videoPaused.value) return
-    if (bufferedSeconds() < 8) return
-    fired = true
-    clearAutoUpgradeTimer()
-    void switchQuality(targetQn, true)
-  }
-  autoUpgradeTimer = window.setInterval(attempt, 1000)
-  window.setTimeout(() => {
-    if (!fired) {
-      fired = true
-      clearAutoUpgradeTimer()
-    }
-  }, 30_000)
-}
-
-function clearAutoUpgradeTimer() {
-  if (autoUpgradeTimer != null) {
-    window.clearInterval(autoUpgradeTimer)
-    autoUpgradeTimer = null
-  }
-}
-
-function bufferedSeconds() {
-  const video = videoRef.value
-  if (!video) return 0
-  try {
-    const buffered = video.buffered
-    if (!buffered.length) return 0
-    const end = buffered.end(buffered.length - 1)
-    const current = Number.isFinite(video.currentTime) ? video.currentTime : 0
-    return Math.max(0, end - current)
-  } catch {
-    return 0
-  }
-}
-
-function restorePlaybackTime(seconds: number, shouldPlay = true) {
-  const video = videoRef.value
-  if (!video) return
-  const seek = () => {
-    // A stale seek from a previous stream must not fire after the modal
-    // closed (the loadedmetadata listener can outlive the current playback).
-    if (!showModal.value) return
-    try {
-      if (video.readyState >= 1) {
-        video.currentTime = seconds
-        if (shouldPlay) void video.play().catch(() => undefined)
-      }
-    } catch {
-      // ignore
-    }
-  }
-  if (video.readyState >= 1) seek()
-  else video.addEventListener('loadedmetadata', seek, { once: true })
 }
 
 function onVideoPlaying() {
@@ -467,32 +366,6 @@ function onVideoError() {
   videoBuffering.value = false
   videoPlaying.value = false
   videoPaused.value = false
-}
-
-async function setPlayerMode(mode: 'auto' | 'iframe') {
-  playerMode.value = mode
-  try {
-    localStorage.setItem(MV_PLAYER_MODE_KEY, mode)
-  } catch {
-    // ignore
-  }
-  if (mode === 'iframe') {
-    playbackAbort?.abort()
-    playbackAbort = null
-    teardownDash()
-    videoRef.value?.pause()
-    proxyVideoUrl.value = ''
-    proxyAudioUrl.value = ''
-    playbackFormat.value = 'mp4'
-    qualityOptions.value = []
-    selectedQn.value = null
-    isSwitchingQuality.value = false
-    playbackMessage.value = ''
-    videoBuffering.value = false
-    videoLoading.value = false
-  } else {
-    void openPlayback()
-  }
 }
 
 function localizePlaybackReason(value: string) {
@@ -546,14 +419,6 @@ function biliQualityLabel(qn: number | null) {
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(2px);
   pointer-events: none;
-}
-
-.mv-mode-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
 }
 
 .mv-player-iframe,

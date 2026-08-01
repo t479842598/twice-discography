@@ -423,7 +423,8 @@ function prewarmMv(trackId: string | null | undefined) {
   mvPrewarmAbort?.abort()
   const controller = new AbortController()
   mvPrewarmAbort = controller
-  const task = api.mvPlayback(trackId, 32, undefined, controller.signal).catch(() => undefined)
+  // Pre-warm at the minimum playable quality (1080P) — the site never goes lower.
+  const task = api.mvPlayback(trackId, 80, undefined, controller.signal).catch(() => undefined)
   mvPrewarmTasks.set(trackId, task)
   void task.finally(() => {
     if (mvPrewarmTasks.get(trackId) === task) mvPrewarmTasks.delete(trackId)

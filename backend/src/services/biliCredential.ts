@@ -503,15 +503,22 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
   }
 
   try {
-    const requestedQn = options.qn ?? 80
     const forceMp4 = options.format === 'mp4'
     const { play } = await resolveBiliPlaybackData(bvid, page, forceMp4, cookie)
     // The playurl response always contains every accepted quality; the caller
     // picks the target from the list below. qn is fixed to 80 inside the cache
     // loader — requesting a different qn does not change the returned DASH set.
+    //
+    // Product requirement: the site offers no quality below 1080P (qn 80). The
+    // selectable set is filtered to 1080P+; if the source only has lower
+    // qualities (rare legacy uploads), the best available is used instead.
+    const MIN_QUALITY = 80
     const accept = play.accept_quality ?? [play.quality ?? 64]
-    const qualities = [...new Set(accept)].sort((left, right) => right - left).map((qn) => ({ qn, label: biliQualityLabel(qn) }))
+    const allQualities = [...new Set(accept)].sort((left, right) => right - left).map((qn) => ({ qn, label: biliQualityLabel(qn) }))
+    const has1080p = allQualities.some((item) => item.qn >= MIN_QUALITY)
+    const qualities = has1080p ? allQualities.filter((item) => item.qn >= MIN_QUALITY) : allQualities
     const availableQns = qualities.map((item) => item.qn)
+    const requestedQn = has1080p ? Math.max(options.qn ?? MIN_QUALITY, MIN_QUALITY) : (options.qn ?? availableQns[0] ?? 64)
     const targetQn = availableQns.includes(requestedQn)
       ? requestedQn
       : availableQns.find((qn) => qn <= requestedQn) ?? availableQns[0] ?? 64
@@ -563,7 +570,9 @@ export async function resolveBiliMvPlayback(mv: MvConfigRecord, options: { qn?: 
         videoUrl = external
         proxyMode = 'worker'
       } else {
-        videoUrl = makeBuiltinUrl(quality, 'video')
+        // kind=mp4: the builtin stream serves the muxed durl (video+audio),
+        // not the DASH video track which has no audio.
+        videoUrl = makeBuiltinUrl(quality, 'mp4')
       }
     }
 
