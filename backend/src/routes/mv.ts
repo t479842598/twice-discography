@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
+import { Readable } from 'node:stream'
 import { getMvConfig, listHomeFeaturedMvs } from '../db/mv.js'
 import {
   fetchBiliJson,
@@ -165,7 +166,11 @@ export async function registerMvRoutes(app: FastifyInstance) {
         if (value) reply.header(header, value)
       }
       reply.header('cache-control', 'private, max-age=3600')
-      return reply.send(response.body)
+      const stream = Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
+      stream.on('error', () => {
+        // Client disconnected or upstream broke mid-stream; nothing to send.
+      })
+      return reply.send(stream)
     } catch (error) {
       return reply.code(502).send({
         error: 'bili_stream_failed',
@@ -214,7 +219,11 @@ export async function registerMvRoutes(app: FastifyInstance) {
 
     reply.header('content-type', contentType)
     reply.header('cache-control', 'public, max-age=86400')
-    return reply.send(response.body)
+    const stream = Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
+    stream.on('error', () => {
+      // Client disconnected; nothing to send.
+    })
+    return reply.send(stream)
   })
   app.get('/home-featured', async () => ({ mvs: listHomeFeaturedMvs().filter((mv) => mv.enabled).map(publicMv) }))
 

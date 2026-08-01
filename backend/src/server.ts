@@ -33,6 +33,15 @@ function loadEnvironmentFiles() {
 
 loadEnvironmentFiles()
 
+// Never let a stray async error take down the whole process; log it instead
+// so it can be diagnosed while the server keeps serving.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason instanceof Error ? reason.stack ?? reason.message : reason)
+})
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error instanceof Error ? error.stack ?? error.message : error)
+})
+
 function staticCacheControl(filePath: string) {
   const normalized = filePath.replace(/\\/g, '/')
   if (/\.(?:avif|webp|png|jpe?g|gif|svg|ico|woff2?|ttf|otf)$/i.test(normalized)) {

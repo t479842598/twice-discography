@@ -5,6 +5,21 @@ import { getPlaybackCandidate, resolveMusicSearchCandidate, searchMusicAcrossSou
 import { MUSIC_SOURCE_LABELS } from '../services/musicTypes.js'
 
 const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const SEARCH_HARD_TIMEOUT_MS = 15_000
+
+async function withSearchTimeout<T>(loader: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await Promise.race([
+      loader(),
+      new Promise<T>((resolve) => {
+        const timer = setTimeout(() => resolve(fallback), SEARCH_HARD_TIMEOUT_MS)
+        timer.unref?.()
+      }),
+    ])
+  } catch {
+    return fallback
+  }
+}
 
 function parseLimit(value: unknown) {
   const limit = Number.parseInt(String(value ?? '10'), 10)
@@ -40,11 +55,13 @@ export async function registerMusicRoutes(app: FastifyInstance) {
     const sources = parseSourceList(query.sources)
     const limit = parseLimit(query.limit)
     const cacheKey = `music:search:${q}:${sources.join(',')}:${limit}`
-    const hits = await withMusicCache(cacheKey, SEARCH_CACHE_TTL_MS, () => searchMusicAcrossSources(q, {
-      sources,
-      limit,
-      jooxToken: process.env.JOOX_TOKEN,
-    }))
+    const hits = await withMusicCache(cacheKey, SEARCH_CACHE_TTL_MS, () => (
+      withSearchTimeout(() => searchMusicAcrossSources(q, {
+        sources,
+        limit,
+        jooxToken: process.env.JOOX_TOKEN,
+      }), [])
+    ))
 
     return {
       query: q,
