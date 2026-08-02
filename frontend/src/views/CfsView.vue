@@ -1,5 +1,7 @@
 <template>
-  <main class="page">
+  <PageSkeleton v-if="loading" variant="list" />
+
+  <main v-else class="page">
     <PageHeader :eyebrow="t('page.cfs.eyebrow')" :title="t('page.cfs.title')" :description="t('page.cfs.description')" />
     <section class="section">
       <h2>{{ t('page.cfs.playable') }}</h2>
@@ -25,6 +27,7 @@ import { api } from '@/api/client'
 import type { CfSong, Track } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
 import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
@@ -34,12 +37,17 @@ const { t } = useI18n()
 const route = useRoute()
 const cfs = ref<CfSong[]>([])
 const cfTracks = ref<Track[]>([])
+const loading = ref(true)
 const highlightedId = computed(() => String(route.query.highlight || ''))
 
 onMounted(async () => {
-  const [cfData, trackData] = await Promise.all([api.cfs(), api.tracks()])
-  cfs.value = cfData.cfs
-  cfTracks.value = trackData.tracks.filter((track) => track.category === 'cf')
+  try {
+    const [cfData, trackData] = await Promise.all([api.cfs(), api.tracks()])
+    cfs.value = cfData.cfs
+    cfTracks.value = trackData.tracks.filter((track) => track.category === 'cf')
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 

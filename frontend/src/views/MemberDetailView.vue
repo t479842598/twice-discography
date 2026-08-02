@@ -4,7 +4,6 @@
       v-if="member"
       :eyebrow="`${member.birthday}`"
       :title="pickText(member.realName, localeStore.locale)"
-      :description="pickText(member.bio, localeStore.locale)"
     >
       <template #eyebrow-prefix>
         <CountryFlag :country-code="member.nationality" :emoji="member.flagEmoji" size="small" />
@@ -14,6 +13,10 @@
       <img v-if="member.photoLocal && !photoFailed" class="member-detail-photo" :src="member.photoLocal" :alt="pickText(member.name, localeStore.locale)" decoding="async" fetchpriority="high" @error="photoFailed = true" />
       <div v-else class="member-detail-photo member-detail-photo-fallback">{{ pickText(member.name, localeStore.locale).slice(0, 2).toUpperCase() }}</div>
       <div class="member-detail-main">
+        <section class="panel member-intro">
+          <h2>{{ t('member.intro') }}</h2>
+          <p>{{ pickText(member.bio, localeStore.locale) }}</p>
+        </section>
         <section class="panel member-resume">
           <h2>{{ t('member.resume') }}</h2>
           <p><strong>{{ t('member.stageName') }}</strong><span>{{ pickText(member.name, localeStore.locale) }}</span></p>
@@ -78,5 +81,13 @@ watch(() => route.params.id, load)
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.member-intro p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 16px;
+  line-height: 1.9;
+  white-space: pre-line;
 }
 </style>

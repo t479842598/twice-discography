@@ -25,6 +25,7 @@ const zhCN = {
   'search.result.cover': '翻唱：{value}',
   'footer.disclaimer': 'TWICE 相关名称、商标与媒体版权归原权利方所有。',
   'nav.backToTop': '回到顶部',
+  'page.loading': '正在加载，请稍候…',
 
   'home.heroKicker': 'TWICE',
   'home.loading': '正在加载，请稍候…',
@@ -136,6 +137,7 @@ const zhCN = {
   'category.predebut': '预出道',
 
   'member.resume': '成员简历',
+  'member.intro': '成员介绍',
   'member.stageName': '艺名',
   'member.realName': '本名',
   'member.nationality': '国籍',
@@ -721,6 +723,7 @@ const enUS: Record<MessageKey, string> = {
   'search.result.cover': 'Cover: {value}',
   'footer.disclaimer': 'TWICE related names, trademarks, and media belong to their respective rights holders.',
   'nav.backToTop': 'Back to top',
+  'page.loading': 'Loading, please wait…',
 
   'home.heroKicker': 'TWICE',
   'home.loading': 'Loading, please wait…',
@@ -832,6 +835,7 @@ const enUS: Record<MessageKey, string> = {
   'category.predebut': 'Pre-debut',
 
   'member.resume': 'Profile',
+  'member.intro': 'About',
   'member.stageName': 'Stage Name',
   'member.realName': 'Real Name',
   'member.nationality': 'Nationality',
@@ -1171,6 +1175,7 @@ const jaJP: Record<MessageKey, string> = {
   'search.result.cover': 'カバー：{value}',
   'footer.disclaimer': 'TWICE 関連の名称、商標、メディアの権利は各権利者に帰属します。',
   'nav.backToTop': 'トップへ戻る',
+  'page.loading': '読み込み中、しばらくお待ちください…',
 
   'home.heroKicker': 'TWICE',
   'home.loading': '読み込み中、しばらくお待ちください…',
@@ -1282,6 +1287,7 @@ const jaJP: Record<MessageKey, string> = {
   'category.predebut': 'デビュー前',
 
   'member.resume': 'プロフィール',
+  'member.intro': 'メンバー紹介',
   'member.stageName': '芸名',
   'member.realName': '本名',
   'member.nationality': '国籍',
@@ -1621,6 +1627,7 @@ const koKR: Record<MessageKey, string> = {
   'search.result.cover': '커버: {value}',
   'footer.disclaimer': 'TWICE 관련 명칭, 상표, 미디어의 권리는 각 권리자에게 있습니다.',
   'nav.backToTop': '맨 위로',
+  'page.loading': '불러오는 중입니다…',
 
   'home.heroKicker': 'TWICE',
   'home.loading': '불러오는 중입니다…',
@@ -1732,6 +1739,7 @@ const koKR: Record<MessageKey, string> = {
   'category.predebut': '데뷔 전',
 
   'member.resume': '프로필',
+  'member.intro': '멤버 소개',
   'member.stageName': '활동명',
   'member.realName': '본명',
   'member.nationality': '국적',

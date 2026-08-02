@@ -1,5 +1,7 @@
 <template>
-  <main class="page">
+  <PageSkeleton v-if="loading" variant="tabs" />
+
+  <main v-else class="page">
     <PageHeader :eyebrow="t('page.solo.eyebrow')" :title="t('page.solo.title')" :description="t('page.solo.description')" />
     <n-tabs type="segment" animated>
       <n-tab-pane name="solo" :tab="t('page.solo.tabSolo')">
@@ -27,10 +29,12 @@ import type { Album, Track } from '@/api/types'
 import AlbumCard from '@/components/catalog/AlbumCard.vue'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
 import { useI18n } from '@/i18n'
 
 const tracks = ref<Track[]>([])
 const albums = ref<Album[]>([])
+const loading = ref(true)
 const { t } = useI18n()
 const soloAlbums = computed(() => albums.value.filter((album) => /^apple-(nayeon|jihyo|tzuyu)-/.test(album.id)))
 const unitAlbums = computed(() => albums.value.filter((album) => album.id.startsWith('apple-misamo') || album.id === 'misamo-masterpiece'))
@@ -38,9 +42,13 @@ const soloTracks = computed(() => tracks.value.filter((track) => track.category 
 const unitTracks = computed(() => tracks.value.filter((track) => ['unit', 'misamo'].includes(track.category)))
 
 onMounted(async () => {
-  const [trackData, albumData] = await Promise.all([api.tracks(), api.albums()])
-  tracks.value = trackData.tracks.filter((track) => ['solo', 'unit', 'misamo'].includes(track.category))
-  albums.value = albumData.albums
+  try {
+    const [trackData, albumData] = await Promise.all([api.tracks(), api.albums()])
+    tracks.value = trackData.tracks.filter((track) => ['solo', 'unit', 'misamo'].includes(track.category))
+    albums.value = albumData.albums
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 

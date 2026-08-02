@@ -1,5 +1,7 @@
 <template>
-  <main class="page">
+  <PageSkeleton v-if="loading" variant="list" />
+
+  <main v-else class="page">
     <PageHeader :eyebrow="t('page.covers.eyebrow')" :title="t('page.covers.title')" :description="t('page.covers.description')" />
     <section class="section">
       <h2>{{ t('page.covers.playable') }}</h2>
@@ -28,6 +30,7 @@ import { api } from '@/api/client'
 import type { Cover, Track } from '@/api/types'
 import TrackList from '@/components/catalog/TrackList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import PageSkeleton from '@/components/common/PageSkeleton.vue'
 import { useI18n } from '@/i18n'
 import { useLocaleStore } from '@/stores/locale'
 import { pickText } from '@/utils/text'
@@ -37,12 +40,17 @@ const { t } = useI18n()
 const route = useRoute()
 const covers = ref<Cover[]>([])
 const coverTracks = ref<Track[]>([])
+const loading = ref(true)
 const highlightedId = computed(() => String(route.query.highlight || ''))
 
 onMounted(async () => {
-  const [coverData, trackData] = await Promise.all([api.covers(), api.tracks()])
-  covers.value = coverData.covers
-  coverTracks.value = trackData.tracks.filter((track) => ['cover', 'predebut'].includes(track.category))
+  try {
+    const [coverData, trackData] = await Promise.all([api.covers(), api.tracks()])
+    covers.value = coverData.covers
+    coverTracks.value = trackData.tracks.filter((track) => ['cover', 'predebut'].includes(track.category))
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
