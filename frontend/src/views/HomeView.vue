@@ -1,5 +1,7 @@
 <template>
-  <main class="page home-page">
+  <HomeSkeleton v-if="homeLoading" />
+
+  <main v-else class="page home-page">
     <!-- 精选 MV 轮播 -->
     <section
       v-if="featuredMvs.length > 0"
@@ -183,6 +185,7 @@ import { RouterLink } from 'vue-router'
 import AlbumCard from '@/components/catalog/AlbumCard.vue'
 import TrackList from '@/components/catalog/TrackList.vue'
 import MvPlayer from '@/components/player/MvPlayer.vue'
+import HomeSkeleton from '@/components/layout/HomeSkeleton.vue'
 import { api } from '@/api/client'
 import type { CatalogOverview, HomeFeaturedMv, Track } from '@/api/types'
 import { useI18n } from '@/i18n'
@@ -196,6 +199,7 @@ const audioStore = useAudioStore()
 const localeStore = useLocaleStore()
 const { t } = useI18n()
 const overview = computed(() => catalog.overview)
+const homeLoading = computed(() => !overview.value && !catalog.error)
 const heroTrack = ref<Track | null>(null)
 const playingHero = ref(false)
 const heroVideoReady = ref(false)

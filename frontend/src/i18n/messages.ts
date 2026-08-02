@@ -24,8 +24,10 @@ const zhCN = {
   'search.result.cf': '广告曲：{value}',
   'search.result.cover': '翻唱：{value}',
   'footer.disclaimer': 'TWICE 相关名称、商标与媒体版权归原权利方所有。',
+  'nav.backToTop': '回到顶部',
 
   'home.heroKicker': 'TWICE',
+  'home.loading': '正在加载，请稍候…',
   'home.playHero': '播放歌曲',
   'home.watchMv': '观看 MV',
   'home.browseAlbums': '浏览专辑',
@@ -718,8 +720,10 @@ const enUS: Record<MessageKey, string> = {
   'search.result.cf': 'CF song: {value}',
   'search.result.cover': 'Cover: {value}',
   'footer.disclaimer': 'TWICE related names, trademarks, and media belong to their respective rights holders.',
+  'nav.backToTop': 'Back to top',
 
   'home.heroKicker': 'TWICE',
+  'home.loading': 'Loading, please wait…',
   'home.playHero': 'Play Song',
   'home.watchMv': 'Watch MV',
   'home.browseAlbums': 'Browse Albums',
@@ -1166,8 +1170,10 @@ const jaJP: Record<MessageKey, string> = {
   'search.result.cf': 'CM曲：{value}',
   'search.result.cover': 'カバー：{value}',
   'footer.disclaimer': 'TWICE 関連の名称、商標、メディアの権利は各権利者に帰属します。',
+  'nav.backToTop': 'トップへ戻る',
 
   'home.heroKicker': 'TWICE',
+  'home.loading': '読み込み中、しばらくお待ちください…',
   'home.playHero': '曲を再生',
   'home.watchMv': 'MVを見る',
   'home.browseAlbums': 'アルバムを見る',
@@ -1614,8 +1620,10 @@ const koKR: Record<MessageKey, string> = {
   'search.result.cf': '광고곡: {value}',
   'search.result.cover': '커버: {value}',
   'footer.disclaimer': 'TWICE 관련 명칭, 상표, 미디어의 권리는 각 권리자에게 있습니다.',
+  'nav.backToTop': '맨 위로',
 
   'home.heroKicker': 'TWICE',
+  'home.loading': '불러오는 중입니다…',
   'home.playHero': '곡 재생',
   'home.watchMv': 'MV 보기',
   'home.browseAlbums': '앨범 보기',

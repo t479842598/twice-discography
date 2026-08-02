@@ -97,16 +97,34 @@
     </n-layout-footer>
 
     <MiniAudioBar />
+
+    <button
+      v-show="showBackToTop"
+      class="back-to-top"
+      type="button"
+      :class="{ 'is-lifted': hasActivePlayer }"
+      :title="t('nav.backToTop')"
+      :aria-label="t('nav.backToTop')"
+      @click="scrollToTop"
+    >
+      <svg class="back-to-top-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+      </svg>
+    </button>
   </n-layout>
 </template>
 
 <script setup lang="ts">
 import type { DropdownOption } from 'naive-ui'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import type { AdminUser, Album, BiliProfile, CfSong, Cover, Member, Track } from '@/api/types'
 import MiniAudioBar from '@/components/player/MiniAudioBar.vue'
+import { useAudioStore } from '@/stores/audio'
 import { useI18n } from '@/i18n'
 import { isLocaleCode } from '@/i18n/messages'
 import { useLocaleStore } from '@/stores/locale'
@@ -115,6 +133,9 @@ import { pickText } from '@/utils/text'
 
 const localeStore = useLocaleStore()
 const themeStore = useThemeStore()
+const audioStore = useAudioStore()
+const showBackToTop = ref(false)
+const hasActivePlayer = computed(() => Boolean(audioStore.currentTrack))
 const router = useRouter()
 const route = useRoute()
 const { localeLabels, supportedLocales, t } = useI18n()
@@ -155,6 +176,8 @@ function localizeAdminDisplayName(value: string | undefined) {
 
 onMounted(async () => {
   isMobile.value = detectMobile()
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
   void refreshAdminState()
   if (isMobile.value) return
 
@@ -220,6 +243,18 @@ function detectMobile() {
   if (typeof window === 'undefined') return false
   return window.innerWidth <= 820 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
+
+function handleScroll() {
+  showBackToTop.value = (window.scrollY || document.documentElement.scrollTop) > 240
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 
 type SearchResults = {
   albums: Album[]
